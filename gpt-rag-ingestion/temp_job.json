@@ -1,0 +1,16 @@
+{
+  "indexerType": "blob-storage-indexer",
+  "runId": "20260119T004500Z",
+  "runStartedAt": "2026-01-19T00:45:00.003245+00:00",
+  "runFinishedAt": null,
+  "sourceContainer": "documents",
+  "sourceFiles": 80,
+  "candidates": 71,
+  "itemsDiscovered": 71,
+  "indexedItems": 0,
+  "skippedNoChange": 9,
+  "success": 0,
+  "failed": 0,
+  "totalChunksUploaded": 0,
+  "status": "running"
+}
