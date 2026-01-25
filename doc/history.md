@@ -241,4 +241,136 @@ az appconfig kv set --endpoint "https://appcs-2v3lfktkn4xam-gprag.azconfig.io" \
 
 ---
 
-*最後更新：2026-01-23*
+## Session: 2026-01-25~26 - Indexing Bug 修復與成本分析
+
+### 📋 工作摘要
+
+本次 session 主要解決 **文件 indexing 缺失問題**，修復了 `_upload_in_batches` 未檢查上傳結果的 bug，並因成本過高而中斷 indexing 作業。
+
+---
+
+### 🐛 1. Bug 修復：upload_documents 結果檢查
+
+**問題發現：** `捷運展演廳參訪.pptx` 顯示處理成功但未出現在 index 中
+
+**根本原因：** [blob_storage_indexer.py](../gpt-rag-ingestion/jobs/blob_storage_indexer.py) 中的 `_upload_in_batches` 函數未檢查 Azure Search SDK 的 `upload_documents` 返回值
+
+**修復內容：**
+```python
+# 修復前：只調用 upload_documents，不檢查結果
+client.upload_documents(documents=batch)
+
+# 修復後：檢查每個文件的上傳狀態
+result: IndexDocumentsResult = client.upload_documents(documents=batch)
+for r in result.results:
+    if r.succeeded:
+        succeeded += 1
+    else:
+        failed += 1
+        logger.error(f"Failed to upload document {r.key}: {r.error_message}")
+if failed > 0:
+    raise RuntimeError(f"Failed to upload {failed} documents")
+```
+
+**部署：**
+- Image: `dataingest:20260125155500`
+- Container App: `ca-ingest-gprag`
+
+---
+
+### 📊 2. Indexing 狀態報告
+
+**最終結果：**
+| 項目 | 數量 |
+|------|------|
+| Blob 總數 (排除 _skip) | 79 |
+| 已 Indexed | 78 |
+| 未 Indexed | 1 |
+
+**未 Indexed 檔案：**
+- `/documents/商場相關/台中百貨商場營收統計.pptx`
+
+**成功 Indexed (包含修復)：**
+- `捷運展演廳參訪.pptx` ✅ 現已成功 indexed
+
+---
+
+### 💰 3. 成本分析 (2026/01/22-25)
+
+**總花費：NT$3,830.90 (~$117 USD)**
+
+| 服務 | 費用 (TWD) | 佔比 |
+|------|----------:|-----:|
+| Foundry Tools (Document Intelligence) | 1,946.67 | 50.8% |
+| Azure Cognitive Search | 1,540.07 | 40.2% |
+| App Configuration | 154.34 | 4.0% |
+| Foundry Models (OpenAI) | 91.63 | 2.4% |
+| Azure Cosmos DB | 82.19 | 2.1% |
+| Container Registry | 15.80 | 0.4% |
+| Storage | 0.20 | <0.1% |
+
+**2026/01/25 詳細成本：**
+| 細項 | 費用 (TWD) |
+|------|----------:|
+| Document Intelligence - S0 Pre-built Pages | 1,667.51 |
+| Document Intelligence - S0 Add-on for Pages | 279.16 |
+| GPT 5.2 output tokens | 67.64 |
+| AI Search Basic Unit | 84.42 |
+| App Configuration Standard | 38.59 |
+
+**結論：**
+- 主要花費來自 **Document Intelligence (89.6%)**
+- 其他服務為正常固定費用
+- 每日固定成本約 **NT$140/天** (不含 ingestion)
+
+---
+
+### ⏹️ 4. 成本節約措施
+
+**已執行：**
+| 項目 | 操作 | 狀態 |
+|------|------|------|
+| Container App | `az containerapp revision deactivate` | ✅ 已停用 |
+| CRON 排程 | 刪除 `CRON_RUN_BLOB_INDEX` | ✅ 已刪除 |
+| AI Search | 維持 Basic tier | ✅ 保留 |
+
+**資源狀態確認：**
+```
+AI Search: Basic tier, 1 replica, 1 partition
+Container App: Revision deactivated, 0 replicas running
+```
+
+---
+
+### 📝 5. 提交記錄
+
+```
+fix: check upload_documents result in _upload_in_batches for proper error handling
+
+- Added result validation for Azure Search SDK upload_documents return values
+- Log individual document failures with error messages
+- Raise RuntimeError if any documents fail to upload
+- Cleaned up temporary files and scripts
+```
+
+**45 files changed**, pushed to `master` branch
+
+---
+
+### 📌 待辦事項
+
+- [ ] 手動處理剩餘 1 個未 indexed 檔案：`台中百貨商場營收統計.pptx`
+- [ ] 監控後續固定成本是否如預期 (~NT$140/天)
+- [ ] 考慮 App Configuration 是否可降為 Free tier
+
+---
+
+### ⚠️ 重要提醒
+
+1. **DI 按量計費：** Document Intelligence 是按使用量計費，Container App 停止後不會再產生費用
+2. **AI Search 固定費用：** Basic tier 每天約 NT$84-350，視使用時段而定
+3. **下次 indexing：** 需手動啟動 Container App revision
+
+---
+
+*最後更新：2026-01-26*
