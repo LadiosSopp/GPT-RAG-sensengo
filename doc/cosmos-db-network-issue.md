@@ -23,8 +23,8 @@ Please check your network settings and make sure CosmosDB is public network enab
 
 | Cosmos DB | 用途 | 原始狀態 |
 |-----------|------|----------|
-| `cosmos-d5teispadppru` | 儲存對話記錄 (應用程式用) | `publicNetworkAccess: Disabled` |
-| `cosmos-aif-d5teispadppru` | Azure AI Agent Service 內部用 | `publicNetworkAccess: Disabled` |
+| `cosmos-{token}` | 儲存對話記錄 (應用程式用) | `publicNetworkAccess: Disabled` |
+| `cosmos-aif-{token}` | Azure AI Agent Service 內部用 | `publicNetworkAccess: Disabled` |
 
 ### 為什麼設定被變更？
 
@@ -32,9 +32,9 @@ Please check your network settings and make sure CosmosDB is public network enab
 
 | 時間 | 執行者 | 操作 |
 |------|--------|------|
-| 2026-01-08 15:10 | v-ktseng@microsoft.com | 創建 Cosmos DB |
+| 2026-01-08 15:10 | {deployer}@{domain}.com | 創建 Cosmos DB |
 | **2026-01-08 16:38** | **Azure Policy / 自動化** | **關閉 Public Access** |
-| 2026-01-09 00:57 | v-ktseng@microsoft.com | 更新設定 |
+| 2026-01-09 00:57 | {deployer}@{domain}.com | 更新設定 |
 | **2026-01-09 16:38** | **Azure Policy / 自動化** | **再次關閉 Public Access** |
 
 這很可能是：
@@ -48,13 +48,13 @@ Please check your network settings and make sure CosmosDB is public network enab
 
 ```bash
 # 取得 Container App 出站 IP
-az containerapp show --name ca-d5teispadppru-orchestrator \
-  --resource-group rg-ethan-test \
+az containerapp show --name ca-{token}-orchestrator \
+  --resource-group {resource-group} \
   --query "properties.outboundIpAddresses" -o tsv
 
 # 取得 Container App Environment Static IP
-az containerapp env show --name cae-d5teispadppru \
-  --resource-group rg-ethan-test \
+az containerapp env show --name cae-{token} \
+  --resource-group {resource-group} \
   --query "properties.staticIp" -o tsv
 ```
 
@@ -62,8 +62,8 @@ az containerapp env show --name cae-d5teispadppru \
 
 ```bash
 az cosmosdb update \
-  --name cosmos-d5teispadppru \
-  --resource-group rg-ethan-test \
+  --name cosmos-{token} \
+  --resource-group {resource-group} \
   --public-network-access Enabled \
   --ip-range-filter "20.10.114.230,48.214.88.238"
 ```
@@ -72,8 +72,8 @@ az cosmosdb update \
 
 ```bash
 az cosmosdb update \
-  --name cosmos-aif-d5teispadppru \
-  --resource-group rg-ethan-test \
+  --name cosmos-aif-{token} \
+  --resource-group {resource-group} \
   --public-network-access Enabled \
   --ip-range-filter "20.10.114.230,48.214.88.238,0.0.0.0"
 ```
@@ -97,7 +97,7 @@ az cosmosdb update \
            │ (IP 白名單)                   │ (IP 白名單)
            ▼                              ▼
 ┌──────────────────────┐    ┌──────────────────────────────────┐
-│  cosmos-d5teispadppru│    │  cosmos-aif-d5teispadppru        │
+│  cosmos-{token}│    │  cosmos-aif-{token}        │
 │  (對話記錄)           │    │  (AI Agent 內部用)                │
 └──────────────────────┘    └──────────────────────────────────┘
 ```
@@ -106,13 +106,13 @@ az cosmosdb update \
 
 ```bash
 # 檢查 Cosmos DB 設定
-az cosmosdb show --name cosmos-d5teispadppru \
-  --resource-group rg-ethan-test \
+az cosmosdb show --name cosmos-{token} \
+  --resource-group {resource-group} \
   --query "{name:name, publicNetworkAccess:publicNetworkAccess, ipRules:ipRules[].ipAddressOrRange}" \
   -o json
 
-az cosmosdb show --name cosmos-aif-d5teispadppru \
-  --resource-group rg-ethan-test \
+az cosmosdb show --name cosmos-aif-{token} \
+  --resource-group {resource-group} \
   --query "{name:name, publicNetworkAccess:publicNetworkAccess, ipRules:ipRules[].ipAddressOrRange}" \
   -o json
 ```
@@ -130,8 +130,8 @@ az cosmosdb show --name cosmos-aif-d5teispadppru \
 ```bash
 # 建立 Private Endpoint
 az network private-endpoint create \
-  --name pe-cosmos-d5teispadppru \
-  --resource-group rg-ethan-test \
+  --name pe-cosmos-{token} \
+  --resource-group {resource-group} \
   --vnet-name <vnet-name> \
   --subnet <subnet-name> \
   --private-connection-resource-id <cosmos-resource-id> \
@@ -146,7 +146,7 @@ az network private-endpoint create \
 ```bash
 # 查詢相關 Policy
 az policy assignment list \
-  --scope "/subscriptions/<subscription-id>/resourceGroups/rg-ethan-test" \
+  --scope "/subscriptions/<subscription-id>/resourceGroups/{resource-group}" \
   --query "[?contains(displayName, 'Cosmos') || contains(displayName, 'network')].{name:name, displayName:displayName}" \
   -o table
 ```
@@ -161,4 +161,4 @@ az policy assignment list \
 
 | 日期 | 變更內容 | 執行者 |
 |------|----------|--------|
-| 2026-01-12 | 發現問題並修復 Cosmos DB 網路設定 | v-ktseng |
+| 2026-01-12 | 發現問題並修復 Cosmos DB 網路設定 | {deployer} |

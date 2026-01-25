@@ -8,7 +8,7 @@
     "aiFoundryLocation":                   { "value": "${AZURE_AI_FOUNDRY_LOCATION}" },
     "psqlLocation":                        { "value": "${AZURE_PSQL_LOCATION}" },
     "cosmosLocation":                        { "value": "${AZURE_COSMOS_LOCATION}" },
-    "deploymentTags":                      { "value": {} },
+    "deploymentTags":                      { "value": { "Project": "GPRAG" } },
     "principalId":                         { "value": "${AZURE_PRINCIPAL_ID}" },
 
     "networkIsolation":                    { "value": "${NETWORK_ISOLATION}" },
@@ -81,7 +81,7 @@
           "model": {
             "format": "OpenAI",
             "name": "gpt-5.2",
-            "version": "2025-04-14"
+            "version": "2025-12-11"
           },
           "sku": {
             "name": "GlobalStandard",
@@ -207,26 +207,6 @@
             "AcrPull",
             "SearchIndexDataContributor",
             "StorageBlobDataContributor",
-            "KeyVaultSecretsUser"
-          ]
-        },
-        {
-          "name": null,
-          "external" : true,
-          "service_name": "mcp",
-          "profile_name": "Consumption",
-          "min_replicas": 0,
-          "max_replicas": 1,
-          "canonical_name": "MCP_APP",
-          "roles": [
-            "AppConfigurationDataReader",
-            "CognitiveServicesUser",
-            "CognitiveServicesOpenAIUser",
-            "CosmosDBBuiltInDataContributor",
-            "AcrPull",
-            "SearchIndexDataContributor",
-            "StorageBlobDataContributor",
-            "StorageQueueDataContributor",
             "KeyVaultSecretsUser"
           ]
         }

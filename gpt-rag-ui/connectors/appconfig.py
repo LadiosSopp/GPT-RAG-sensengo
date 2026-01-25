@@ -26,12 +26,13 @@ class AppConfigClient:
         """
         # ==== Load all config parameters in one place ====
         try:
-            self.tenant_id = os.environ.get('AZURE_TENANT_ID', "*")
+            self.tenant_id = os.environ.get('AZURE_TENANT_ID') or None
         except Exception as e:
             raise e
         
         try:
-            self.client_id = os.environ.get('AZURE_CLIENT_ID', "*")
+            # Use None for System Assigned Managed Identity, only set client_id for User Assigned
+            self.client_id = os.environ.get('AZURE_CLIENT_ID') or None
         except Exception as e:
             raise e
         

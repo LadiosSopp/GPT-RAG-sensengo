@@ -92,19 +92,19 @@ if s_blob_index:
 
 ```powershell
 # 備份原設定
-az appconfig kv set --endpoint "https://appcs-d5teispadppru.azconfig.io" \
+az appconfig kv set --endpoint "https://appcs-{token}.azconfig.io" \
   --key "CRON_RUN_BLOB_INDEX_BACKUP" --value "13 * * * *" --auth-mode login
 
 # 刪除問題設定
-az appconfig kv delete --endpoint "https://appcs-d5teispadppru.azconfig.io" \
+az appconfig kv delete --endpoint "https://appcs-{token}.azconfig.io" \
   --key "CRON_RUN_BLOB_INDEX" --label "gpt-rag-ingestion" --auth-mode login
 ```
 
 ### 2. 增加 Container 資源配置
 
 ```powershell
-az containerapp update --name ca-d5teispadppru-dataingest \
-  --resource-group rg-ethan-test --cpu 1.0 --memory 2Gi
+az containerapp update --name ca-{token}-dataingest \
+  --resource-group {resource-group} --cpu 1.0 --memory 2Gi
 ```
 
 | 配置項目 | 修改前 | 修改後 |
@@ -127,7 +127,7 @@ else:
 
 設定環境變數：
 ```powershell
-az appconfig kv set --endpoint "https://appcs-d5teispadppru.azconfig.io" \
+az appconfig kv set --endpoint "https://appcs-{token}.azconfig.io" \
   --key "RUN_JOBS_ON_STARTUP" --value "false" --auth-mode login
 ```
 
@@ -154,7 +154,7 @@ az appconfig kv set --endpoint "https://appcs-d5teispadppru.azconfig.io" \
    
 2. **恢復 CRON 排程（使用合理頻率）**
    ```powershell
-   az appconfig kv set --endpoint "https://appcs-d5teispadppru.azconfig.io" \
+   az appconfig kv set --endpoint "https://appcs-{token}.azconfig.io" \
      --key "CRON_RUN_BLOB_INDEX" --label "gpt-rag-ingestion" \
      --value "0 */6 * * *" --auth-mode login
    ```
@@ -169,7 +169,7 @@ az appconfig kv set --endpoint "https://appcs-d5teispadppru.azconfig.io" \
 4. **清理歷史 Job 記錄**
    ```powershell
    # 清理 jobs container 中的舊記錄
-   az storage blob delete-batch --account-name std5teispadppru \
+   az storage blob delete-batch --account-name st{token} \
      --source jobs --pattern "blob-storage-indexer/runs/*" --auth-mode login
    ```
 
@@ -204,11 +204,11 @@ az appconfig kv set --endpoint "https://appcs-d5teispadppru.azconfig.io" \
 
 | 資源 | 識別碼/URL |
 |-----|-----------|
-| Resource Group | `rg-ethan-test` |
-| Container App | `ca-d5teispadppru-dataingest` |
-| App Configuration | `appcs-d5teispadppru.azconfig.io` |
-| AI Foundry Account | `aif-d5teispadppru.cognitiveservices.azure.com` |
-| Storage Account | `std5teispadppru` |
+| Resource Group | `{resource-group}` |
+| Container App | `ca-{token}-dataingest` |
+| App Configuration | `appcs-{token}.azconfig.io` |
+| AI Foundry Account | `aif-{token}.cognitiveservices.azure.com` |
+| Storage Account | `st{token}` |
 
 ---
 

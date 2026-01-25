@@ -406,7 +406,7 @@ Write-Host "ragindex-company-a: $($r.'@odata.count') chunks"
 
 ### 測試環境
 
-- **Container App**: `ca-d5teispadppru-dataingest` revision 0000009
+- **Container App**: `ca-{token}-dataingest` revision 0000009
 - **CRON**: `*/5 * * * *` (每 5 分鐘)
 - **APScheduler**: `max_instances=1` (保護機制，避免重複執行)
 

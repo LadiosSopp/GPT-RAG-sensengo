@@ -3,7 +3,7 @@
 > 本文件記錄了在 Azure 上部署 GPT-RAG 解決方案時遇到的問題及其解決方法。
 > 
 > **部署日期**: 2026-01-08 ~ 2026-01-09  
-> **環境**: rg-ethan-test / gpt-rag-ethan  
+> **環境**: {resource-group} / {environment-name}  
 > **區域**: eastus2  
 > **模式**: 無網路隔離 (Minimal Configuration)
 
@@ -35,20 +35,20 @@
 ### 部署架構
 
 ```
-Resource Group: rg-ethan-test
-├── Container Apps Environment (cae-d5teispadppru)
-│   ├── ca-d5teispadppru-frontend (前端 UI)
-│   ├── ca-d5teispadppru-orchestrator (RAG 編排器)
-│   ├── ca-d5teispadppru-dataingest (資料攝取)
-│   └── ca-d5teispadppru-function (Azure Functions)
-├── Storage Account (std5teispadppru)
-├── Cosmos DB (cosmos-d5teispadppru) - 對話歷史
-├── Cosmos DB (cosmos-aif-d5teispadppru) - AI Foundry
-├── AI Search (srch-d5teispadppru)
-├── AI Services (aif-d5teispadppru)
-├── App Configuration (appcs-d5teispadppru)
-├── Container Registry (crd5teispadppru)
-└── Key Vault (kv-d5teispadppru)
+Resource Group: {resource-group}
+├── Container Apps Environment (cae-{token})
+│   ├── ca-{token}-frontend (前端 UI)
+│   ├── ca-{token}-orchestrator (RAG 編排器)
+│   ├── ca-{token}-dataingest (資料攝取)
+│   └── ca-{token}-function (Azure Functions)
+├── Storage Account (st{token})
+├── Cosmos DB (cosmos-{token}) - 對話歷史
+├── Cosmos DB (cosmos-aif-{token}) - AI Foundry
+├── AI Search (srch-{token})
+├── AI Services (aif-{token})
+├── App Configuration (appcs-{token})
+├── Container Registry (cr{token})
+└── Key Vault (kv-{token})
 ```
 
 ---
@@ -91,7 +91,7 @@ git clone https://github.com/Azure/gpt-rag-agentic.git
 #### 步驟 2: 登入 ACR
 
 ```powershell
-$ACR_NAME = "crd5teispadppru"
+$ACR_NAME = "cr{token}"
 az acr login --name $ACR_NAME
 ```
 
@@ -122,14 +122,14 @@ docker push "$ACR_NAME.azurecr.io/azure-gpt-rag/function:latest"
 #### 步驟 4: 更新 Container Apps
 
 ```powershell
-$RG = "rg-ethan-test"
-$ACR = "crd5teispadppru.azurecr.io"
+$RG = "{resource-group}"
+$ACR = "cr{token}.azurecr.io"
 
 # 更新四個 Container Apps
-az containerapp update --name ca-d5teispadppru-frontend --resource-group $RG --image "$ACR/azure-gpt-rag/frontend:latest"
-az containerapp update --name ca-d5teispadppru-orchestrator --resource-group $RG --image "$ACR/azure-gpt-rag/orchestrator:latest"
-az containerapp update --name ca-d5teispadppru-dataingest --resource-group $RG --image "$ACR/azure-gpt-rag/dataingest:latest"
-az containerapp update --name ca-d5teispadppru-function --resource-group $RG --image "$ACR/azure-gpt-rag/function:latest"
+az containerapp update --name ca-{token}-frontend --resource-group $RG --image "$ACR/azure-gpt-rag/frontend:latest"
+az containerapp update --name ca-{token}-orchestrator --resource-group $RG --image "$ACR/azure-gpt-rag/orchestrator:latest"
+az containerapp update --name ca-{token}-dataingest --resource-group $RG --image "$ACR/azure-gpt-rag/dataingest:latest"
+az containerapp update --name ca-{token}-function --resource-group $RG --image "$ACR/azure-gpt-rag/function:latest"
 ```
 
 ---
@@ -160,7 +160,7 @@ az containerapp update --name ca-d5teispadppru-function --resource-group $RG --i
 
 ```powershell
 # 檢查 Storage Account 網路設定
-az storage account show --name std5teispadppru --resource-group rg-ethan-test `
+az storage account show --name st{token} --resource-group {resource-group} `
   --query "{publicNetworkAccess: publicNetworkAccess, defaultAction: networkRuleSet.defaultAction}"
 ```
 
@@ -179,12 +179,12 @@ az storage account show --name std5teispadppru --resource-group rg-ethan-test `
 ```powershell
 # 啟用 Storage Account 公開網路存取
 az storage account update `
-  --name std5teispadppru `
-  --resource-group rg-ethan-test `
+  --name st{token} `
+  --resource-group {resource-group} `
   --public-network-access Enabled
 
 # 驗證設定
-az storage account show --name std5teispadppru --resource-group rg-ethan-test `
+az storage account show --name st{token} --resource-group {resource-group} `
   --query "{publicNetworkAccess: publicNetworkAccess}"
 ```
 
@@ -212,7 +212,7 @@ This is blocked by your Cosmos DB account firewall settings.
 
 ```powershell
 # 檢查 Cosmos DB 網路設定
-az cosmosdb list --resource-group rg-ethan-test `
+az cosmosdb list --resource-group {resource-group} `
   --query "[].{name: name, publicNetworkAccess: publicNetworkAccess}" -o table
 ```
 
@@ -220,24 +220,24 @@ az cosmosdb list --resource-group rg-ethan-test `
 ```
 Name                      PublicNetworkAccess
 ------------------------  ---------------------
-cosmos-aif-d5teispadppru  Disabled
-cosmos-d5teispadppru      Disabled
+cosmos-aif-{token}  Disabled
+cosmos-{token}      Disabled
 ```
 
 ### 解決方法
 
 ```powershell
 # 啟用兩個 Cosmos DB 帳戶的公開網路存取
-az cosmosdb update --name cosmos-d5teispadppru `
-  --resource-group rg-ethan-test `
+az cosmosdb update --name cosmos-{token} `
+  --resource-group {resource-group} `
   --public-network-access Enabled
 
-az cosmosdb update --name cosmos-aif-d5teispadppru `
-  --resource-group rg-ethan-test `
+az cosmosdb update --name cosmos-aif-{token} `
+  --resource-group {resource-group} `
   --public-network-access Enabled
 
 # 驗證設定
-az cosmosdb list --resource-group rg-ethan-test `
+az cosmosdb list --resource-group {resource-group} `
   --query "[].{name: name, publicNetworkAccess: publicNetworkAccess}" -o table
 ```
 
@@ -268,8 +268,8 @@ from the included credentials.
 
 ```powershell
 # 如果已經設定，需要移除（設為空字串）
-az containerapp update --name ca-d5teispadppru-dataingest `
-  --resource-group rg-ethan-test `
+az containerapp update --name ca-{token}-dataingest `
+  --resource-group {resource-group} `
   --set-env-vars "AZURE_CLIENT_ID="
 ```
 
@@ -284,15 +284,15 @@ az containerapp update --name ca-d5teispadppru-dataingest `
 ### 1. 修復網路存取設定
 
 ```powershell
-$RG = "rg-ethan-test"
-$STORAGE = "std5teispadppru"
+$RG = "{resource-group}"
+$STORAGE = "st{token}"
 
 # 1. 啟用 Storage Account 公開網路存取
 az storage account update --name $STORAGE --resource-group $RG --public-network-access Enabled
 
 # 2. 啟用 Cosmos DB 公開網路存取
-az cosmosdb update --name cosmos-d5teispadppru --resource-group $RG --public-network-access Enabled
-az cosmosdb update --name cosmos-aif-d5teispadppru --resource-group $RG --public-network-access Enabled
+az cosmosdb update --name cosmos-{token} --resource-group $RG --public-network-access Enabled
+az cosmosdb update --name cosmos-aif-{token} --resource-group $RG --public-network-access Enabled
 ```
 
 ### 2. 重啟 Container Apps（觸發新的 Revision）
@@ -301,10 +301,10 @@ az cosmosdb update --name cosmos-aif-d5teispadppru --resource-group $RG --public
 $timestamp = Get-Date -Format "yyyyMMddHHmmss"
 
 # 更新環境變數以觸發新的 Revision
-az containerapp update --name ca-d5teispadppru-dataingest --resource-group $RG `
+az containerapp update --name ca-{token}-dataingest --resource-group $RG `
   --set-env-vars "RESTART_TIMESTAMP=$timestamp"
   
-az containerapp update --name ca-d5teispadppru-orchestrator --resource-group $RG `
+az containerapp update --name ca-{token}-orchestrator --resource-group $RG `
   --set-env-vars "RESTART_TIMESTAMP=$timestamp"
 ```
 
@@ -320,7 +320,7 @@ az cosmosdb list --resource-group $RG `
   --query "[].{name: name, publicNetworkAccess: publicNetworkAccess}" -o table
 
 # 檢查 Container App 日誌
-az containerapp logs show --name ca-d5teispadppru-dataingest `
+az containerapp logs show --name ca-{token}-dataingest `
   --resource-group $RG --tail 50 --follow false
 ```
 
@@ -339,9 +339,9 @@ az containerapp logs show --name ca-d5teispadppru-dataingest `
 
 ```powershell
 # 檢查 AI Search 索引
-$searchEndpoint = "https://srch-d5teispadppru.search.windows.net"
+$searchEndpoint = "https://srch-{token}.search.windows.net"
 $token = az account get-access-token --resource "https://search.azure.com" --query accessToken -o tsv
-$indexName = "ragindex-d5teispadppru"
+$indexName = "ragindex-{token}"
 
 # 獲取索引統計
 Invoke-RestMethod -Uri "$searchEndpoint/indexes/$indexName/stats?api-version=2023-11-01" `
@@ -358,7 +358,7 @@ Invoke-RestMethod -Uri "$searchEndpoint/indexes/$indexName/stats?api-version=202
 
 ### ✅ 前端驗證
 
-1. 開啟前端 URL: `https://ca-d5teispadppru-frontend.calmcoast-6a1d388b.eastus2.azurecontainerapps.io`
+1. 開啟前端 URL: `https://ca-{token}-frontend.calmcoast-6a1d388b.eastus2.azurecontainerapps.io`
 2. 輸入測試問題: "What are the benefit options available?"
 3. 驗證收到來自文件的回答（非錯誤訊息）
 
@@ -476,25 +476,25 @@ az appconfig kv set --endpoint "https://appcs-xxx.azconfig.io" \
 
 ```powershell
 # 登入 ACR
-az acr login --name crd5teispadppru
+az acr login --name cr{token}
 
 # 建置並使用時間戳標籤
 $ts = Get-Date -Format "yyyyMMddHHmmss"
-docker build --no-cache -t crd5teispadppru.azurecr.io/azure-gpt-rag/frontend:$ts .
-docker push crd5teispadppru.azurecr.io/azure-gpt-rag/frontend:$ts
+docker build --no-cache -t cr{token}.azurecr.io/azure-gpt-rag/frontend:$ts .
+docker push cr{token}.azurecr.io/azure-gpt-rag/frontend:$ts
 
 # 更新 Container App 使用新標籤
-az containerapp update --name ca-d5teispadppru-frontend `
-  --resource-group rg-ethan-test `
-  --image crd5teispadppru.azurecr.io/azure-gpt-rag/frontend:$ts
+az containerapp update --name ca-{token}-frontend `
+  --resource-group {resource-group} `
+  --image cr{token}.azurecr.io/azure-gpt-rag/frontend:$ts
 ```
 
 #### 方法 2: 驗證新 revision 已啟用
 
 ```powershell
 # 確認新 revision 狀態
-az containerapp revision list --name ca-d5teispadppru-frontend `
-  --resource-group rg-ethan-test -o table
+az containerapp revision list --name ca-{token}-frontend `
+  --resource-group {resource-group} -o table
 
 # 預期輸出: 新 revision 應該 Active=True, TrafficWeight=100
 ```
@@ -509,7 +509,7 @@ az containerapp revision list --name ca-d5teispadppru-frontend `
 
 ```powershell
 # 檢查 image 內的檔案是否包含最新變更
-docker run --rm crd5teispadppru.azurecr.io/azure-gpt-rag/frontend:latest `
+docker run --rm cr{token}.azurecr.io/azure-gpt-rag/frontend:latest `
   cat /app/public/debug-panels.js | Select-String "特定關鍵字"
 ```
 
@@ -530,16 +530,16 @@ docker run --rm crd5teispadppru.azurecr.io/azure-gpt-rag/frontend:latest `
 
 **部署指令**:
 ```powershell
-az acr login --name crd5teispadppru
+az acr login --name cr{token}
 cd "c:\SynologyDrive\LTIMindtree\Source Code\GPT-RAG-2.0\gpt-rag-ui"
 
 $ts = Get-Date -Format "yyyyMMddHHmmss"
-docker build --no-cache -t crd5teispadppru.azurecr.io/azure-gpt-rag/frontend:$ts .
-docker push crd5teispadppru.azurecr.io/azure-gpt-rag/frontend:$ts
+docker build --no-cache -t cr{token}.azurecr.io/azure-gpt-rag/frontend:$ts .
+docker push cr{token}.azurecr.io/azure-gpt-rag/frontend:$ts
 
-az containerapp update --name ca-d5teispadppru-frontend `
-  --resource-group rg-ethan-test `
-  --image crd5teispadppru.azurecr.io/azure-gpt-rag/frontend:$ts
+az containerapp update --name ca-{token}-frontend `
+  --resource-group {resource-group} `
+  --image cr{token}.azurecr.io/azure-gpt-rag/frontend:$ts
 ```
 
 ---

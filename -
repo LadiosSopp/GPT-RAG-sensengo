@@ -1,16 +1,12 @@
 {
   "indexerType": "blob-storage-indexer",
-  "runId": "20260120T030504Z",
-  "runStartedAt": "2026-01-20T03:05:04.875786+00:00",
-  "runFinishedAt": null,
-  "sourceContainer": "documents",
-  "sourceFiles": 79,
-  "candidates": 3,
-  "itemsDiscovered": 3,
-  "indexedItems": 0,
-  "skippedNoChange": 76,
-  "success": 0,
-  "failed": 0,
-  "totalChunksUploaded": 0,
-  "status": "running"
+  "blob": "商場相關/台中百貨商場營收統計.pptx",
+  "parent_id": "/documents/商場相關/台中百貨商場營收統計.pptx",
+  "last_modified": "2026-01-25T01:47:26+00:00",
+  "startedAt": "2026-01-25T06:04:11.705630+00:00",
+  "runId": "20260125T060410Z",
+  "chunksIds": "documents-pptx-c*",
+  "status": "success",
+  "chunks": 2,
+  "finishedAt": "2026-01-25T06:04:16.386177+00:00"
 }

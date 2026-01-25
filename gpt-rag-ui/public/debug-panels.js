@@ -1,714 +1,496 @@
 /**
- * Debug Panels JavaScript
- * Creates left and right side panels for displaying timing and prompting information
- * Also handles model indicator display near input field
+ * Debug Panels for GPT-RAG UI
+ * Displays timing information and prompting details in collapsible panels
  * 
- * Mode detection via URL query parameter:
- * - ?mode=demo = Demo mode (clean UI, no debug panels)
- * - Default or ?mode=dev = Dev mode (full debug UI)
+ * Usage: Navigate to /dev to enable debug mode
  */
 
 (function() {
     'use strict';
 
-    // Store debug info
-    let lastTimingInfo = null;
-    let lastPromptingInfo = null;
+    // Debug state
+    let debugEnabled = false;
+    let timingData = {};
+    let promptingData = {};
+
+    // Initialize debug mode based on URL
+    function initDebugMode() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Check URL for debug flag
+        const urlDebug = window.location.pathname.includes('/dev') || 
+                         urlParams.get('debug') === 'true' ||
+                         window.location.search.includes('debug=true');
+        
+        // If URL has debug flag, store it in localStorage
+        if (urlDebug) {
+            localStorage.setItem('gptrag_debug', 'true');
+        }
+        
+        // Check localStorage for persisted debug state
+        const storedDebug = localStorage.getItem('gptrag_debug') === 'true';
+        
+        debugEnabled = urlDebug || storedDebug;
+        
+        console.log('[Debug] Checking debug mode:', {
+            pathname: window.location.pathname,
+            search: window.location.search,
+            urlDebug: urlDebug,
+            storedDebug: storedDebug,
+            debugEnabled: debugEnabled
+        });
+        
+        if (debugEnabled) {
+            console.log('[Debug] Debug mode enabled - creating panels');
+            createDebugPanels();
+            hookIntoStreaming();
+        }
+    }
     
-    // Detect UI mode from URL query parameter
-    // ?mode=demo = demo mode, otherwise dev mode
-    const urlParams = new URLSearchParams(window.location.search);
-    const uiMode = urlParams.get('mode') === 'demo' ? 'demo' : 'dev';
-    let currentModel = 'GPT-5 (Latest)';  // Default model
-    
-    console.log('[DebugPanels] UI Mode detected from URL:', uiMode);
+    // Allow disabling debug mode
+    window.disableDebugMode = function() {
+        localStorage.removeItem('gptrag_debug');
+        location.reload();
+    };
 
-    // Decode base64 with UTF-8 support (for Chinese characters)
-    function decodeBase64UTF8(base64Str) {
-        try {
-            // Decode base64 to binary string
-            const binaryStr = atob(base64Str);
-            // Convert binary string to Uint8Array
-            const bytes = new Uint8Array(binaryStr.length);
-            for (let i = 0; i < binaryStr.length; i++) {
-                bytes[i] = binaryStr.charCodeAt(i);
-            }
-            // Decode UTF-8 bytes to string
-            const decoder = new TextDecoder('utf-8');
-            return decoder.decode(bytes);
-        } catch (e) {
-            console.error('[DebugPanels] Error decoding base64 UTF-8:', e);
-            return null;
-        }
-    }
-
-    // Create model indicator near input field gear icon
-    function createModelIndicator() {
-        if (document.getElementById('model-indicator')) {
-            return;
-        }
-        
-        const indicator = document.createElement('div');
-        indicator.id = 'model-indicator';
-        indicator.className = 'model-indicator';
-        indicator.innerHTML = '<span class="model-label">🤖</span><span class="model-name">' + currentModel + '</span>';
-        
-        // Try to insert next to the gear icon in the input area
-        function insertIndicator() {
-            // Look for the settings/gear button in the input area
-            const gearButton = document.querySelector('[data-testid="settings-button"], button[aria-label*="settings"], button[aria-label*="Settings"], .MuiIconButton-root svg[data-testid="SettingsIcon"]')?.closest('button');
-            
-            if (gearButton && gearButton.parentElement) {
-                // Insert the indicator after the gear button
-                gearButton.parentElement.insertBefore(indicator, gearButton.nextSibling);
-                indicator.classList.add('model-indicator-inline');
-                console.log('[DebugPanels] Model indicator inserted next to gear icon');
-                return true;
-            }
-            
-            // Fallback: look for the input area container
-            const inputArea = document.querySelector('.composer, [data-testid="composer"], .MuiBox-root:has(textarea)');
-            if (inputArea) {
-                inputArea.appendChild(indicator);
-                console.log('[DebugPanels] Model indicator appended to input area');
-                return true;
-            }
-            
-            return false;
-        }
-        
-        // Try to insert, if not found yet, retry a few times
-        if (!insertIndicator()) {
-            let attempts = 0;
-            const retryInterval = setInterval(() => {
-                attempts++;
-                if (insertIndicator() || attempts > 10) {
-                    clearInterval(retryInterval);
-                    if (attempts > 10) {
-                        // Final fallback: append to body with fixed position
-                        document.body.appendChild(indicator);
-                        console.log('[DebugPanels] Model indicator appended to body (fallback)');
-                    }
-                }
-            }, 500);
-        }
-    }
-
-    // Update model indicator
-    function updateModelIndicator(modelName) {
-        if (!modelName) return;
-        currentModel = modelName;
-        
-        const indicator = document.getElementById('model-indicator');
-        if (indicator) {
-            const nameSpan = indicator.querySelector('.model-name');
-            if (nameSpan) {
-                nameSpan.textContent = modelName;
-            }
-        }
-        console.log('[DebugPanels] Model updated to:', modelName);
-    }
-
-    // Create the panel container
+    // Create debug panel UI
     function createDebugPanels() {
         // Check if panels already exist
-        if (document.getElementById('debug-panels-container')) {
-            return;
-        }
-        
-        // Don't create debug panels in demo mode
-        if (uiMode === 'demo') {
-            console.log('[DebugPanels] Demo mode - skipping debug panels');
-            return;
-        }
+        if (document.getElementById('debug-panels-container')) return;
 
-        // Create container
         const container = document.createElement('div');
         container.id = 'debug-panels-container';
         container.innerHTML = `
-            <div id="timing-panel" class="debug-panel left-panel">
-                <div class="panel-header">
-                    <span class="panel-title">⏱️ 時間統計</span>
-                    <button class="panel-toggle" onclick="togglePanel('timing-panel')">−</button>
+            <style>
+                #debug-panels-container {
+                    position: fixed;
+                    top: 60px;
+                    right: 10px;
+                    z-index: 10000;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    font-size: 12px;
+                }
+                
+                .debug-panel {
+                    background: rgba(30, 30, 30, 0.95);
+                    color: #e0e0e0;
+                    border-radius: 8px;
+                    margin-bottom: 10px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    overflow: hidden;
+                    min-width: 300px;
+                    max-width: 450px;
+                }
+                
+                .debug-panel.right-panel {
+                    max-width: 450px;
+                }
+                
+                .debug-panel-header {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    padding: 10px 15px;
+                    cursor: pointer;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    user-select: none;
+                }
+                
+                .debug-panel-header:hover {
+                    filter: brightness(1.1);
+                }
+                
+                .debug-panel-title {
+                    font-weight: 600;
+                    font-size: 13px;
+                }
+                
+                .debug-panel-toggle {
+                    font-size: 16px;
+                    transition: transform 0.2s;
+                }
+                
+                .debug-panel.collapsed .debug-panel-toggle {
+                    transform: rotate(-90deg);
+                }
+                
+                .debug-panel-content {
+                    padding: 12px 15px;
+                    max-height: 400px;
+                    overflow-y: auto;
+                }
+                
+                .debug-panel.collapsed .debug-panel-content {
+                    display: none;
+                }
+                
+                .timing-row {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 6px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                }
+                
+                .timing-row:last-child {
+                    border-bottom: none;
+                }
+                
+                .timing-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                
+                .timing-icon {
+                    font-size: 14px;
+                }
+                
+                .timing-value {
+                    font-family: 'Consolas', monospace;
+                    color: #4ade80;
+                }
+                
+                .timing-value.pending {
+                    color: #fbbf24;
+                }
+                
+                .timing-total {
+                    font-weight: bold;
+                    color: #60a5fa;
+                    font-size: 14px;
+                    margin-top: 8px;
+                    padding-top: 8px;
+                    border-top: 2px solid rgba(255,255,255,0.2);
+                }
+                
+                .prompting-section {
+                    margin-bottom: 12px;
+                }
+                
+                .prompting-title {
+                    font-weight: 600;
+                    color: #818cf8;
+                    margin-bottom: 6px;
+                    font-size: 11px;
+                    text-transform: uppercase;
+                }
+                
+                .prompting-content {
+                    background: rgba(0,0,0,0.3);
+                    padding: 8px;
+                    border-radius: 4px;
+                    font-family: 'Consolas', monospace;
+                    font-size: 11px;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    max-height: 150px;
+                    overflow-y: auto;
+                }
+                
+                .debug-badge {
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 8px 16px;
+                    border-radius: 20px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    z-index: 10001;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                }
+                
+                .debug-badge:hover {
+                    transform: scale(1.05);
+                }
+            </style>
+            
+            <div class="debug-panel" id="timing-panel">
+                <div class="debug-panel-header" onclick="window.toggleDebugPanel('timing-panel')">
+                    <span class="debug-panel-title">⏱️ Timing</span>
+                    <span class="debug-panel-toggle">▼</span>
                 </div>
-                <div class="panel-content" id="timing-content">
-                    <p class="empty-state">尚無資料</p>
+                <div class="debug-panel-content" id="timing-content">
+                    <div class="timing-row">
+                        <span class="timing-label"><span class="timing-icon">🚀</span> Waiting...</span>
+                        <span class="timing-value pending">-</span>
+                    </div>
                 </div>
             </div>
-            <div id="prompting-panel" class="debug-panel right-panel">
-                <div class="panel-header">
-                    <span class="panel-title">📝 Prompting 詳情</span>
-                    <button class="panel-toggle" onclick="togglePanel('prompting-panel')">−</button>
+            
+            <div class="debug-panel right-panel" id="prompting-panel">
+                <div class="debug-panel-header" onclick="window.toggleDebugPanel('prompting-panel')">
+                    <span class="debug-panel-title">📝 Prompting Details</span>
+                    <span class="debug-panel-toggle">▼</span>
                 </div>
-                <div class="panel-content" id="prompting-content">
-                    <p class="empty-state">尚無資料</p>
+                <div class="debug-panel-content" id="prompting-content">
+                    <div class="prompting-section">
+                        <div class="prompting-title">Waiting for response...</div>
+                        <div class="prompting-content">No data yet</div>
+                    </div>
                 </div>
+            </div>
+            
+            <div class="debug-badge" onclick="window.toggleAllDebugPanels()">
+                🐛 Debug Mode
             </div>
         `;
-
+        
         document.body.appendChild(container);
-        console.log('[DebugPanels] Panels created');
     }
 
-    // Toggle panel collapse/expand
-    window.togglePanel = function(panelId) {
+    // Toggle panel collapse state
+    window.toggleDebugPanel = function(panelId) {
         const panel = document.getElementById(panelId);
-        const content = panel.querySelector('.panel-content');
-        const toggle = panel.querySelector('.panel-toggle');
-        
-        if (content.style.display === 'none') {
-            content.style.display = 'block';
-            toggle.textContent = '−';
-        } else {
-            content.style.display = 'none';
-            toggle.textContent = '+';
+        if (panel) {
+            panel.classList.toggle('collapsed');
         }
     };
 
-    // Map stage names to friendly display names
-    function getStageFriendlyName(stage) {
-        if (!stage) return stage;
-        // Flow stages
-        if (stage === 'get_or_create_thread') return '🧵 建立/取得 Thread';
-        if (stage === 'get_or_create_agent') return '🤖 建立/取得 Agent';
-        if (stage === 'send_user_message') return '📤 發送訊息';
-        if (stage === 'consolidate_history') return '📚 整理對話歷史';
-        if (stage === 'cleanup_agent') return '🧹 清理 Agent';
-        // Streaming stages
-        if (stage === 'stream_start') return '⏱️ 開始串流';
-        if (stage === 'api_init') return '🔌 API 初始化';
-        if (stage.startsWith('llm_thinking_')) {
-            const num = stage.split('_')[2];
-            return `🧠 LLM 思考 #${num}`;
-        }
-        if (stage === 'llm_thinking') return '🧠 LLM 思考';
-        if (stage === 'tool_execution') return '🔧 工具執行';
-        if (stage === 'response_generation') return '✍️ 回應生成';
-        return stage;
-    }
+    // Toggle all panels
+    window.toggleAllDebugPanels = function() {
+        const panels = document.querySelectorAll('.debug-panel');
+        const allCollapsed = Array.from(panels).every(p => p.classList.contains('collapsed'));
+        panels.forEach(p => {
+            if (allCollapsed) {
+                p.classList.remove('collapsed');
+            } else {
+                p.classList.add('collapsed');
+            }
+        });
+    };
 
-    // Map stage to service provider
-    function getServiceForStage(stage) {
-        if (!stage) return '';
-        // AI Search related
-        if (stage === 'tool_execution') return '🔎 AI Search';
-        // All other stages are Azure AI Foundry (Agent API)
-        if (stage === 'get_or_create_thread') return '🤖 AI Foundry';
-        if (stage === 'get_or_create_agent') return '🤖 AI Foundry';
-        if (stage === 'send_user_message') return '🤖 AI Foundry';
-        if (stage === 'consolidate_history') return '🤖 AI Foundry';
-        if (stage === 'cleanup_agent') return '🤖 AI Foundry';
-        if (stage === 'stream_start') return '🤖 AI Foundry';
-        if (stage === 'api_init') return '🤖 AI Foundry';
-        if (stage.startsWith('llm_thinking')) return '🧠 AI Foundry';
-        if (stage === 'response_generation') return '🧠 AI Foundry';
-        return '';
-    }
+    // Update timing panel
+    window.updateTimingPanel = function(data) {
+        if (!debugEnabled) return;
+        
+        const content = document.getElementById('timing-content');
+        if (!content) return;
 
-    // Format timing info to HTML
-    function formatTimingHtml(info) {
-        if (!info) return '<p class="empty-state">尚無資料</p>';
+        timingData = { ...timingData, ...data };
+        
+        const stages = [
+            { key: 'request_start', icon: '🚀', label: 'Request Started' },
+            { key: 'thread_creation', icon: '🧵', label: 'Thread Creation' },
+            { key: 'llm_thinking_1', icon: '🤔', label: 'LLM Thinking #1' },
+            { key: 'tool_execution', icon: '🔧', label: 'Tool Execution' },
+            { key: 'search_query', icon: '🔍', label: 'AI Search' },
+            { key: 'llm_thinking_2', icon: '💭', label: 'LLM Thinking #2' },
+            { key: 'response_streaming', icon: '📤', label: 'Response Streaming' },
+            { key: 'total', icon: '⏱️', label: 'Total Time', isTotal: true }
+        ];
+
+        let html = '';
+        stages.forEach(stage => {
+            const value = timingData[stage.key];
+            const displayValue = value !== undefined ? `${value.toFixed(2)}s` : '-';
+            const valueClass = value !== undefined ? 'timing-value' : 'timing-value pending';
+            
+            if (stage.isTotal) {
+                html += `
+                    <div class="timing-row timing-total">
+                        <span class="timing-label"><span class="timing-icon">${stage.icon}</span> ${stage.label}</span>
+                        <span class="${valueClass}">${displayValue}</span>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="timing-row">
+                        <span class="timing-label"><span class="timing-icon">${stage.icon}</span> ${stage.label}</span>
+                        <span class="${valueClass}">${displayValue}</span>
+                    </div>
+                `;
+            }
+        });
+
+        content.innerHTML = html;
+    };
+
+    // Update prompting panel
+    window.updatePromptingPanel = function(data) {
+        if (!debugEnabled) return;
+        
+        const content = document.getElementById('prompting-content');
+        if (!content) return;
+
+        promptingData = { ...promptingData, ...data };
 
         let html = '';
         
-        // Total duration - 以秒為主要單位
-        const totalMs = info.total_duration_ms || 0;
-        const totalSec = totalMs / 1000;
-        html += `<div class="stat-item"><strong>總耗時:</strong> ${totalSec.toFixed(2)} 秒</div>`;
-        
-        // Agent monitoring info
-        if (info.agent_id) {
-            const agentSourceMap = {
-                'model_specific': '模型專用',
-                'conversation': '對話重用',
-                'generic': '通用',
-                'new': '新建'
-            };
-            const agentSource = agentSourceMap[info.agent_source] || info.agent_source || '未知';
-            const agentStatus = info.agent_reused ? '✅ 重用' : '🆕 新建';
-            const toolsStatus = info.tools_updated ? '🔄 已更新' : '✓ 不需更新';
-            
-            html += '<div class="agent-monitor-section">';
-            html += '<div class="section-title">🤖 Agent 監控</div>';
-            html += `<div class="stat-item"><strong>Agent ID:</strong> <code>${info.agent_id.substring(0, 20)}...</code></div>`;
-            html += `<div class="stat-item"><strong>狀態:</strong> ${agentStatus}</div>`;
-            html += `<div class="stat-item"><strong>來源:</strong> ${agentSource}</div>`;
-            html += `<div class="stat-item"><strong>Tools:</strong> ${toolsStatus}</div>`;
-            if (info.tools_configured && info.tools_configured.length > 0) {
-                html += `<div class="stat-item"><strong>配置的工具:</strong> ${info.tools_configured.join(', ')}</div>`;
-            }
-            html += '</div>';
+        if (promptingData.user_message) {
+            html += `
+                <div class="prompting-section">
+                    <div class="prompting-title">User Message</div>
+                    <div class="prompting-content">${escapeHtml(promptingData.user_message)}</div>
+                </div>
+            `;
         }
         
-        // Calculate sum of phases for comparison
-        const timings = info.timings || [];
-        const sumMs = timings.reduce((acc, t) => acc + (t.duration_ms || 0), 0);
-        if (sumMs > 0 && totalMs > 0) {
-            const coverage = ((sumMs / totalMs) * 100).toFixed(1);
-            html += `<div class="stat-item" style="font-size:0.85em;color:#666;"><strong>階段覆蓋率:</strong> ${coverage}%</div>`;
+        if (promptingData.system_prompt) {
+            html += `
+                <div class="prompting-section">
+                    <div class="prompting-title">System Prompt</div>
+                    <div class="prompting-content">${escapeHtml(truncateText(promptingData.system_prompt, 500))}</div>
+                </div>
+            `;
         }
         
-        // Search timing data
-        const searchDebug = info.search_debug || {};
-        const embeddingsMs = searchDebug.embeddings_time_ms || 0;
-        const searchMs = searchDebug.search_time_ms || 0;
-        
-        // Timing breakdown - 以秒為主要單位，加入服務歸屬
-        if (timings.length > 0) {
-            html += '<table class="timing-table"><thead><tr><th>階段</th><th>耗時</th><th>服務</th></tr></thead><tbody>';
-            timings.forEach(t => {
-                const stage = getStageFriendlyName(t.stage || '');
-                const durationMs = t.duration_ms || 0;
-                const durationSec = (durationMs / 1000).toFixed(2);
-                const service = getServiceForStage(t.stage || '');
-                html += `<tr><td>${stage}</td><td>${durationSec} 秒</td><td>${service}</td></tr>`;
-                
-                // 在工具執行後插入細分的搜尋時間 (作為子項目)
-                if (t.stage === 'tool_execution' && (embeddingsMs > 0 || searchMs > 0)) {
-                    html += `<tr class="sub-stage"><td>　└ Embeddings</td><td>${(embeddingsMs / 1000).toFixed(2)} 秒</td><td>🔎 AI Search</td></tr>`;
-                    html += `<tr class="sub-stage"><td>　└ 搜尋索引</td><td>${(searchMs / 1000).toFixed(2)} 秒</td><td>🔎 AI Search</td></tr>`;
-                }
-            });
-            html += '</tbody></table>';
-        }
-
-        // Search results count
-        if (searchDebug.results_count) {
-            html += `<div class="stat-item" style="margin-top:10px;">🔍 搜尋結果數量: ${searchDebug.results_count}</div>`;
-        }
-
-        return html;
-    }
-
-    // Format prompting info to HTML - clean up JSON tags
-    function formatPromptingHtml(info) {
-        if (!info) return '<p class="empty-state">尚無資料</p>';
-
-        let html = '';
-        
-        // Model name
-        html += `<div class="stat-item"><strong>模型:</strong> ${info.model_name || 'unknown'}</div>`;
-        
-        // System Prompt - cleaned
-        const systemPrompt = cleanPrompt(info.system_prompt || '');
-        if (systemPrompt) {
-            html += '<div class="collapsible-section">';
-            html += '<div class="section-header" onclick="this.parentElement.classList.toggle(\'expanded\')">🤖 System Prompt <span class="expand-icon">▶</span></div>';
-            html += `<div class="section-body"><pre>${escapeHtml(systemPrompt)}</pre></div>`;
-            html += '</div>';
-        }
-
-        // Search Info
-        const searchDebug = info.search_debug || {};
-        if (searchDebug.query) {
-            html += '<div class="collapsible-section">';
-            html += '<div class="section-header" onclick="this.parentElement.classList.toggle(\'expanded\')">🔎 Search Query <span class="expand-icon">▶</span></div>';
-            html += '<div class="section-body">';
-            html += `<div class="stat-item"><strong>查詢:</strong> ${escapeHtml(searchDebug.query)}</div>`;
-            html += `<div class="stat-item"><strong>索引:</strong> ${escapeHtml(searchDebug.index_name || '')}</div>`;
-            html += `<div class="stat-item"><strong>方法:</strong> ${escapeHtml(searchDebug.search_approach || '')}</div>`;
-            html += '</div>';
-            html += '</div>';
-        }
-
-        // Search Results Preview
-        const resultsPreview = searchDebug.results_preview || [];
-        if (resultsPreview.length > 0) {
-            // Show score threshold info if enabled
-            const scoreThreshold = searchDebug.score_threshold || 0;
-            const filteredCount = searchDebug.filtered_count || 0;
-            let headerExtra = '';
-            if (scoreThreshold > 0) {
-                headerExtra = ` | Threshold: ${scoreThreshold}`;
-                if (filteredCount > 0) {
-                    headerExtra += ` | Filtered: ${filteredCount}`;
-                }
-            }
-            
-            html += '<div class="collapsible-section">';
-            html += '<div class="section-header" onclick="this.parentElement.classList.toggle(\'expanded\')">📄 Search Results (' + resultsPreview.length + ')' + escapeHtml(headerExtra) + ' <span class="expand-icon">▶</span></div>';
-            html += '<div class="section-body">';
-            resultsPreview.forEach((r, i) => {
-                const score = r.score !== undefined ? r.score.toFixed(3) : 'N/A';
-                html += `<div class="result-item">`;
-                html += `<div class="result-header"><strong>${i+1}. ${escapeHtml(r.title || 'No Title')}</strong> <span class="result-score">Score: ${score}</span></div>`;
-                if (r.link) {
-                    html += `<div class="result-link">📎 ${escapeHtml(r.link)}</div>`;
-                }
-                if (r.content_preview) {
-                    html += `<div class="result-content"><pre>${escapeHtml(r.content_preview)}</pre></div>`;
-                }
-                html += '</div>';
-            });
-            html += '</div>';
-            html += '</div>';
-        }
-
-        // Tool Output - the full JSON sent to LLM
-        const toolOutput = searchDebug.tool_output || '';
-        if (toolOutput) {
-            html += '<div class="collapsible-section">';
-            html += '<div class="section-header" onclick="this.parentElement.classList.toggle(\'expanded\')">🔧 Tool Output (完整 JSON 給 LLM) <span class="expand-icon">▶</span></div>';
-            html += '<div class="section-body">';
-            try {
-                // Pretty print JSON
-                const parsed = JSON.parse(toolOutput);
-                html += `<pre class="tool-output-json">${escapeHtml(JSON.stringify(parsed, null, 2))}</pre>`;
-            } catch(e) {
-                html += `<pre class="tool-output-json">${escapeHtml(toolOutput)}</pre>`;
-            }
-            html += '</div>';
-            html += '</div>';
-        }
-
-        // LLM Stages - show input/output at each stage
-        const llmStages = info.llm_stages || [];
-        if (llmStages.length > 0) {
-            html += '<div class="collapsible-section expanded">';
-            html += '<div class="section-header" onclick="this.parentElement.classList.toggle(\'expanded\')">🧠 LLM 處理階段 (' + llmStages.length + ') <span class="expand-icon">▶</span></div>';
-            html += '<div class="section-body">';
-            llmStages.forEach((stage, i) => {
-                const stageName = stage.stage === 'tool_execution' ? '🔧 工具執行' : 
-                                  stage.stage === 'response_generation' ? '✍️ 回應生成' : 
-                                  stage.stage;
-                html += `<div class="llm-stage-item">`;
-                html += `<div class="stage-header"><strong>${i+1}. ${stageName}</strong>`;
-                if (stage.duration_ms) {
-                    html += ` <span class="stage-duration">(${(stage.duration_ms/1000).toFixed(2)}s)</span>`;
-                }
-                html += `</div>`;
-                
-                // Tool calls details
-                if (stage.tool_calls && stage.tool_calls.length > 0) {
-                    stage.tool_calls.forEach((tc, j) => {
-                        html += `<div class="tool-call-item">`;
-                        html += `<div class="tool-call-name">Tool: ${escapeHtml(tc.function_name || tc.type || 'unknown')}</div>`;
-                        if (tc.arguments) {
-                            html += `<div class="tool-call-section"><strong>Arguments:</strong><pre>${escapeHtml(tc.arguments)}</pre></div>`;
-                        }
-                        if (tc.output) {
-                            html += `<div class="tool-call-section"><strong>Output:</strong><pre>${escapeHtml(tc.output)}</pre></div>`;
-                        }
-                        html += `</div>`;
-                    });
-                }
-                
-                // Response output
-                if (stage.output) {
-                    html += `<div class="stage-output"><strong>輸出:</strong><pre>${escapeHtml(stage.output)}</pre></div>`;
-                }
-                if (stage.total_chars) {
-                    html += `<div class="stage-stats">總字元數: ${stage.total_chars}</div>`;
-                }
-                html += `</div>`;
-            });
-            html += '</div>';
-            html += '</div>';
-        }
-
-        return html;
-    }
-
-    // Clean up prompt by removing unnecessary JSON-like tags
-    function cleanPrompt(prompt) {
-        if (!prompt) return '';
-        
-        // Remove common JSON artifacts
-        let cleaned = prompt;
-        
-        // Remove XML-like tags that might be artifacts
-        cleaned = cleaned.replace(/<\/?json>/gi, '');
-        cleaned = cleaned.replace(/<\/?data>/gi, '');
-        
-        // Remove JSON structure markers if the content is wrapped
-        if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
-            try {
-                const parsed = JSON.parse(cleaned);
-                if (parsed.content) {
-                    cleaned = parsed.content;
-                } else if (parsed.text) {
-                    cleaned = parsed.text;
-                } else if (parsed.prompt) {
-                    cleaned = parsed.prompt;
-                }
-            } catch (e) {
-                // Not valid JSON, keep as is
-            }
+        if (promptingData.tool_calls && promptingData.tool_calls.length > 0) {
+            html += `
+                <div class="prompting-section">
+                    <div class="prompting-title">Tool Calls</div>
+                    <div class="prompting-content">${escapeHtml(JSON.stringify(promptingData.tool_calls, null, 2))}</div>
+                </div>
+            `;
         }
         
-        // Truncate if too long
-        if (cleaned.length > 3000) {
-            cleaned = cleaned.substring(0, 3000) + '\n\n... (truncated)';
+        if (promptingData.search_results) {
+            html += `
+                <div class="prompting-section">
+                    <div class="prompting-title">Search Results (${promptingData.search_results.count || 0} docs)</div>
+                    <div class="prompting-content">${escapeHtml(truncateText(promptingData.search_results.preview || 'N/A', 300))}</div>
+                </div>
+            `;
         }
-        
-        return cleaned.trim();
-    }
 
-    // Escape HTML to prevent XSS
+        if (promptingData.model) {
+            html += `
+                <div class="prompting-section">
+                    <div class="prompting-title">Model</div>
+                    <div class="prompting-content">${escapeHtml(promptingData.model)}</div>
+                </div>
+            `;
+        }
+
+        if (html === '') {
+            html = `
+                <div class="prompting-section">
+                    <div class="prompting-title">Waiting for response...</div>
+                    <div class="prompting-content">No data yet</div>
+                </div>
+            `;
+        }
+
+        content.innerHTML = html;
+    };
+
+    // Reset debug panels for new query
+    window.resetDebugPanels = function() {
+        timingData = {};
+        promptingData = {};
+        window.updateTimingPanel({});
+        window.updatePromptingPanel({});
+    };
+
+    // Helper: Escape HTML
     function escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 
-    // Update panel content
-    function updateTimingPanel(info) {
-        const content = document.getElementById('timing-content');
-        if (content) {
-            content.innerHTML = formatTimingHtml(info);
-            lastTimingInfo = info;
-        }
+    // Helper: Truncate text
+    function truncateText(text, maxLength) {
+        if (!text) return '';
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
     }
 
-    function updatePromptingPanel(info) {
-        const content = document.getElementById('prompting-content');
-        if (content) {
-            content.innerHTML = formatPromptingHtml(info);
-            lastPromptingInfo = info;
-        }
-    }
-
-    // Expose to global scope for backend to call
-    window.updateDebugPanels = function(debugInfo) {
-        if (!debugInfo) return;
+    // Hook into streaming to capture debug data
+    function hookIntoStreaming() {
+        console.log('[Debug] Setting up API polling for debug data');
         
-        console.log('[DebugPanels] Updating with new debug info');
+        let lastTimestamp = 0;
+        let pollInterval = null;
         
-        // Split info for each panel
-        const timingInfo = {
-            total_duration_ms: debugInfo.total_duration_ms,
-            timings: debugInfo.timings,
-            search_debug: {
-                embeddings_time_ms: debugInfo.search_debug?.embeddings_time_ms,
-                search_time_ms: debugInfo.search_debug?.search_time_ms,
-                total_time_ms: debugInfo.search_debug?.total_time_ms,
-                results_count: debugInfo.search_debug?.results_count
-            },
-            // Agent and tool monitoring info
-            agent_id: debugInfo.agent_id,
-            agent_reused: debugInfo.agent_reused,
-            agent_source: debugInfo.agent_source,
-            tools_configured: debugInfo.tools_configured,
-            tools_updated: debugInfo.tools_updated
-        };
-
-        const promptingInfo = {
-            model_name: debugInfo.model_name,
-            system_prompt: debugInfo.system_prompt,
-            user_message: debugInfo.user_message,
-            search_debug: debugInfo.search_debug,
-            llm_stages: debugInfo.llm_stages,
-            final_response: debugInfo.final_response
-        };
-
-        updateTimingPanel(timingInfo);
-        updatePromptingPanel(promptingInfo);
-    };
-
-    // Clear panels
-    window.clearDebugPanels = function() {
-        const timingContent = document.getElementById('timing-content');
-        const promptingContent = document.getElementById('prompting-content');
-        if (timingContent) timingContent.innerHTML = '<p class="empty-state">尚無資料</p>';
-        if (promptingContent) promptingContent.innerHTML = '<p class="empty-state">尚無資料</p>';
-    };
-
-    // Watch for debug messages in the chat
-    function observeMessages() {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
-                    if (node.nodeType === Node.ELEMENT_NODE) {
-                        // Look for debug messages
-                        const debugMarker = node.querySelector('[data-debug-info]');
-                        if (debugMarker) {
-                            try {
-                                console.log('[DebugPanels] Found data-debug-info marker');
-                                const debugInfo = JSON.parse(debugMarker.dataset.debugInfo);
-                                window.updateDebugPanels(debugInfo);
-                                // Hide the debug message from chat
-                                const messageContainer = debugMarker.closest('.message');
-                                if (messageContainer) {
-                                    messageContainer.style.display = 'none';
-                                }
-                            } catch (e) {
-                                console.error('[DebugPanels] Error parsing debug info:', e);
-                            }
+        // Poll the debug API endpoint
+        async function pollDebugData() {
+            if (!debugEnabled) return;
+            
+            try {
+                const response = await fetch('/_debug/data');
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Only update if we have new data
+                    if (data.timestamp && data.timestamp > lastTimestamp) {
+                        lastTimestamp = data.timestamp;
+                        console.log('[Debug] Received debug data:', data);
+                        
+                        if (data.timing) {
+                            window.updateTimingPanel({
+                                llm_thinking_1: data.timing.ttfb,
+                                response_streaming: data.timing.streaming,
+                                total: data.timing.total
+                            });
                         }
-
-                        // Also look for hidden debug data
-                        const hiddenDebug = node.querySelector('.debug-data-hidden');
-                        if (hiddenDebug) {
-                            try {
-                                console.log('[DebugPanels] Found hidden debug div via observer');
-                                
-                                // Check for base64 encoded data first
-                                let debugInfo;
-                                if (hiddenDebug.dataset.debugB64) {
-                                    const jsonStr = decodeBase64UTF8(hiddenDebug.dataset.debugB64);
-                                    if (jsonStr) {
-                                        debugInfo = JSON.parse(jsonStr);
-                                    }
-                                } else {
-                                    debugInfo = JSON.parse(hiddenDebug.textContent);
-                                }
-                                
-                                window.updateDebugPanels(debugInfo);
-                                // Hide the entire message containing debug data
-                                let parent = hiddenDebug.parentElement;
-                                while (parent && !parent.classList.contains('step')) {
-                                    parent = parent.parentElement;
-                                }
-                                if (parent) {
-                                    parent.style.display = 'none';
-                                } else {
-                                    hiddenDebug.style.display = 'none';
-                                }
-                            } catch (e) {
-                                console.error('[DebugPanels] Error parsing hidden debug:', e);
-                            }
+                        
+                        if (data.prompting) {
+                            window.updatePromptingPanel(data.prompting);
                         }
                     }
-                });
-            });
-        });
-
-        // Start observing the entire document since Chainlit structure can vary
-        observer.observe(document.body, { childList: true, subtree: true });
-        console.log('[DebugPanels] Message observer started on document.body');
-    }
-
-    // Watch for model selection changes via Chainlit settings dropdown
-    function watchModelSelection() {
-        // Periodically check for model changes in various UI elements
-        setInterval(() => {
-            // Method 1: Look for selected option in Chainlit's MUI Select
-            const selectedItems = document.querySelectorAll('[role="option"][aria-selected="true"], .MuiMenuItem-root.Mui-selected, .MuiListItem-root.Mui-selected');
-            selectedItems.forEach(item => {
-                const text = item.textContent || '';
-                if (text && text.includes('GPT') && text !== currentModel) {
-                    updateModelIndicator(text.trim());
                 }
-            });
-            
-            // Method 2: Check the displayed value in select inputs
-            const selectDisplays = document.querySelectorAll('.MuiSelect-select, [role="combobox"], .MuiInputBase-input');
-            selectDisplays.forEach(display => {
-                const text = display.textContent || display.value || '';
-                if (text && text.includes('GPT') && text !== currentModel) {
-                    updateModelIndicator(text.trim());
-                }
-            });
-            
-            // Method 3: Look for model confirmation message in chat
-            const messages = document.querySelectorAll('.step .markdown-body, .message-content');
-            messages.forEach(msg => {
-                const text = msg.textContent || '';
-                const match = text.match(/已切換至 \*\*(.+?)\*\* 模型|切換至 (.+?) 模型/);
-                if (match) {
-                    const modelName = match[1] || match[2];
-                    if (modelName && modelName !== currentModel) {
-                        updateModelIndicator(modelName.trim());
-                    }
-                }
-            });
-        }, 500);
-    }
-
-    // Periodic scan for debug data that might be missed by observer
-    function startPeriodicScan() {
-        setInterval(() => {
-            // Skip debug data processing in demo mode
-            if (uiMode === 'demo') {
-                return;
+            } catch (e) {
+                // Silently ignore polling errors
+                console.log('[Debug] Polling error (normal if no data yet):', e.message);
             }
-            
-            const hiddenDebugElements = document.querySelectorAll('.debug-data-hidden');
-            hiddenDebugElements.forEach((elem) => {
-                if (!elem.dataset.processed) {
-                    try {
-                        console.log('[DebugPanels] Found hidden debug via periodic scan');
-                        
-                        // Check for base64 encoded data first
-                        let debugInfo;
-                        if (elem.dataset.debugB64) {
-                            // Decode base64 with UTF-8 support
-                            const jsonStr = decodeBase64UTF8(elem.dataset.debugB64);
-                            if (jsonStr) {
-                                debugInfo = JSON.parse(jsonStr);
-                                console.log('[DebugPanels] Decoded base64 debug data (UTF-8)');
-                            }
-                        } else {
-                            // Fallback to text content
-                            debugInfo = JSON.parse(elem.textContent);
-                        }
-                        
-                        window.updateDebugPanels(debugInfo);
-                        elem.dataset.processed = 'true';
-                        // Hide the containing message
-                        let parent = elem.parentElement;
-                        while (parent && !parent.classList.contains('step')) {
-                            parent = parent.parentElement;
-                        }
-                        if (parent) {
-                            parent.style.display = 'none';
-                        }
-                    } catch (e) {
-                        console.error('[DebugPanels] Error in periodic scan:', e);
-                        elem.dataset.processed = 'error';
-                    }
-                }
-            });
-        }, 500); // Scan every 500ms
-        console.log('[DebugPanels] Periodic scan started');
-    }
-
-    // Initialize when DOM is ready
-    function init() {
-        console.log('[DebugPanels] Initializing, UI mode:', uiMode);
-        
-        // Always create model indicator (shows in both dev and demo mode)
-        createModelIndicator();
-        
-        // Only create debug panels in dev mode
-        if (uiMode === 'dev') {
-            createDebugPanels();
-            observeMessages();
-            startPeriodicScan();
-        } else {
-            // In demo mode, still need to hide debug messages
-            startDebugMessageHider();
         }
         
-        // Watch for model selection changes
-        watchModelSelection();
+        // Start polling
+        function startPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(pollDebugData, 1000);
+            console.log('[Debug] Started polling /_debug/data every 1s');
+        }
         
-        console.log('[DebugPanels] Initialized successfully');
-    }
-    
-    // Simple function to hide debug messages in demo mode
-    function startDebugMessageHider() {
-        setInterval(() => {
-            const hiddenDebugElements = document.querySelectorAll('.debug-data-hidden:not([data-processed])');
-            hiddenDebugElements.forEach((elem) => {
-                elem.dataset.processed = 'true';
-                // Hide the containing message
-                let parent = elem.parentElement;
-                while (parent && !parent.classList.contains('step')) {
-                    parent = parent.parentElement;
+        // Track when user sends a message
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                const input = document.querySelector('textarea, input[type="text"]');
+                if (input && document.activeElement === input && input.value.trim()) {
+                    window.resetDebugPanels();
+                    lastTimestamp = 0; // Reset to get new data
+                    window.updateTimingPanel({ request_start: 0 });
+                    window.updatePromptingPanel({ user_message: input.value.trim() });
                 }
-                if (parent) {
-                    parent.style.display = 'none';
+            }
+        });
+        
+        // Also watch for button clicks (send button)
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('button');
+            if (btn && (btn.type === 'submit' || btn.getAttribute('aria-label')?.includes('send'))) {
+                const input = document.querySelector('textarea, input[type="text"]');
+                if (input && input.value.trim()) {
+                    window.resetDebugPanels();
+                    lastTimestamp = 0;
+                    window.updateTimingPanel({ request_start: 0 });
+                    window.updatePromptingPanel({ user_message: input.value.trim() });
                 }
-            });
-        }, 200);
+            }
+        });
+        
+        startPolling();
+        console.log('[Debug] API polling hooks installed');
     }
 
-    // Wait for DOM ready
+    // Auto-initialize when DOM is ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', initDebugMode);
     } else {
-        // DOM already loaded, wait a bit for Chainlit to initialize
-        setTimeout(init, 1000);
+        initDebugMode();
     }
+
+    // Re-check on navigation (for SPA)
+    let lastPath = window.location.pathname;
+    setInterval(() => {
+        if (window.location.pathname !== lastPath) {
+            lastPath = window.location.pathname;
+            initDebugMode();
+        }
+    }, 500);
+
 })();

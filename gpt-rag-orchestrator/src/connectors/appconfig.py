@@ -33,8 +33,9 @@ class AppConfigClient:
         self.client = {}
 
         # ==== Load all config parameters in one place ====
-        self.tenant_id = os.environ.get('AZURE_TENANT_ID', "*")
-        self.client_id = os.environ.get('AZURE_CLIENT_ID', "*")
+        # Use None for System Assigned Managed Identity, only set client_id for User Assigned
+        self.tenant_id = os.environ.get('AZURE_TENANT_ID') or None
+        self.client_id = os.environ.get('AZURE_CLIENT_ID') or None
 
         self.allow_env_vars = False
         if "allow_environment_variables" in os.environ:

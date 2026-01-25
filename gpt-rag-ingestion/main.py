@@ -139,38 +139,30 @@ async def lifespan(app: FastAPI):
     # If a CRON variable was defined for a job, run it once now sequentially to
     # provide a deterministic startup run without APScheduler race/missed logs.
     # Only run jobs whose CRON env var existed (the `_schedule` helper returned True).
-    # 
-    # IMPORTANT: Set RUN_JOBS_ON_STARTUP=false to disable immediate execution on startup.
-    # This is useful to prevent excessive Document Intelligence API calls when the
-    # Container App restarts frequently.
-    run_on_startup = os.getenv("RUN_JOBS_ON_STARTUP", "true").lower() in ("true", "1", "yes")
-    if not run_on_startup:
-        logging.info("[startup] RUN_JOBS_ON_STARTUP=false, skipping immediate job execution")
-    else:
-        try:
-            if s_blob_index:
-                logging.info("[startup] Running blob-storage-indexer immediately")
-                await run_blob_index()
-            if s_blob_purge:
-                logging.info("[startup] Running blob-purge immediately")
-                await run_blob_purge()        
-            if s_nl2sql_index:
-                logging.info("[startup] Running nl2sql-indexer immediately")
-                await run_nl2sql_index()
-            if s_nl2sql_purge:
-                logging.info("[startup] Running nl2sql-purge immediately")
-                await run_nl2sql_purge()            
-            if s_sharepoint_index:
-                logging.info("[startup] Running sharepoint-indexer immediately")
-                await run_sharepoint_index()
-            if s_sharepoint_purge:
-                logging.info("[startup] Running sharepoint-purger immediately")
-                await run_sharepoint_purge()
-            if s_images_purge:
-                logging.info("[startup] Running multimodality-images-purger immediately")
-                await run_images_purge()
-        except Exception:
-            logging.exception("[startup] Error while running immediate scheduled jobs")
+    try:
+        if s_blob_index:
+            logging.info("[startup] Running blob-storage-indexer immediately")
+            await run_blob_index()
+        if s_blob_purge:
+            logging.info("[startup] Running blob-purge immediately")
+            await run_blob_purge()        
+        if s_nl2sql_index:
+            logging.info("[startup] Running nl2sql-indexer immediately")
+            await run_nl2sql_index()
+        if s_nl2sql_purge:
+            logging.info("[startup] Running nl2sql-purge immediately")
+            await run_nl2sql_purge()            
+        if s_sharepoint_index:
+            logging.info("[startup] Running sharepoint-indexer immediately")
+            await run_sharepoint_index()
+        if s_sharepoint_purge:
+            logging.info("[startup] Running sharepoint-purger immediately")
+            await run_sharepoint_purge()
+        if s_images_purge:
+            logging.info("[startup] Running multimodality-images-purger immediately")
+            await run_images_purge()
+    except Exception:
+        logging.exception("[startup] Error while running immediate scheduled jobs")
 
     yield
 

@@ -3,20 +3,23 @@ import re
 import uuid
 import logging
 import urllib.parse
-import time as time_module
-import asyncio
+import time
+import json
 from typing import Optional, Set, Tuple
 from datetime import datetime, timedelta
 
 import chainlit as cl
-from chainlit.input_widget import Select, Slider
+from chainlit.server import app as chainlit_server_app
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse, HTMLResponse
 
 from orchestrator_client import call_orchestrator_stream
 from feedback import register_feedback_handlers,create_feedback_actions
 from dependencies import get_config
 from connectors import BlobClient
+from debug_store import get_debug_data, set_debug_data
 
-from constants import APPLICATION_INSIGHTS_CONNECTION_STRING, APP_NAME, UUID_REGEX, REFERENCE_REGEX, TERMINATE_TOKEN, SUPPORTED_EXTENSIONS
+from constants import APPLICATION_INSIGHTS_CONNECTION_STRING, APP_NAME, UUID_REGEX, REFERENCE_REGEX, TERMINATE_TOKEN
 from telemetry import Telemetry
 from opentelemetry.trace import SpanKind
 
@@ -26,47 +29,47 @@ config = get_config()
 
 Telemetry.configure_monitoring(config, APPLICATION_INSIGHTS_CONNECTION_STRING, APP_NAME)
 
-# Model deployment options for the dropdown
-# Format: {"display_name": "deployment_name"}
-MODEL_OPTIONS = {
-    "GPT-5 (Latest)": "gpt5-chat",
-    "GPT-5 Nano (Fastest)": "gpt5-nano",
-    "GPT-5 Mini (Balanced)": "gpt5-mini",
-    "GPT-4.1": "chat",
-    "GPT-4.1 Nano": "gpt4.1-nano",
-}
-DEFAULT_MODEL = "gpt5-chat"
-
-# Search Index options for multi-tenant support
-# Format: {"display_name": "index_name"}
-# These can be dynamically loaded from App Configuration or AI Search
-INDEX_OPTIONS = {
-    "預設知識庫": "ragindex-d5teispadppru",
-    "Company A 知識庫": "ragindex-company-a",
-}
-DEFAULT_INDEX = "ragindex-d5teispadppru"
-
-# Status messages for user feedback during processing
-# These map to [STATUS:xxx] events from orchestrator
-STATUS_MESSAGES = {
-    "thinking": ("🤔", "LLM 思考中"),
-    "searching": ("🔍", "搜尋知識庫"),
-    "generating": ("✍️", "生成回應中"),
-    "done": None,  # Clear status
-}
-
-# Stage display order for dynamic status
-STAGE_ORDER = ["thinking", "searching", "generating"]
-
-# Regex pattern for status events
-STATUS_PATTERN = re.compile(r'\[STATUS:(\w+)\]')
-
-# Regex pattern for debug events (JSON payload)
-DEBUG_PATTERN = re.compile(r'\[DEBUG:(.+)\]$', re.DOTALL)
-
 ENABLE_FEEDBACK = config.get("ENABLE_USER_FEEDBACK", False, bool)
 STORAGE_ACCOUNT_NAME = config.get("STORAGE_ACCOUNT_NAME", "", str)
 
+# Create a router for debug routes
+debug_router = APIRouter()
+
+@debug_router.get("/_debug/data")
+async def debug_data_api():
+    """API endpoint to return debug data as JSON"""
+    data = get_debug_data()
+    if data:
+        return JSONResponse(content=data)
+    return JSONResponse(content={"error": "No debug data available", "status": "waiting"})
+
+@debug_router.get("/dev")
+async def dev_mode_page():
+    """Enable debug mode and redirect to main app"""
+    html = """<!DOCTYPE html>
+<html><head><title>Debug Mode</title>
+<style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}.loader{text-align:center}.spinner{width:50px;height:50px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px}@keyframes spin{to{transform:rotate(360deg)}}</style>
+</head><body><div class="loader"><div class="spinner"></div><div>🐛 Enabling Debug Mode...</div></div>
+<script>localStorage.setItem('gptrag_debug','true');setTimeout(()=>location.href='/',500);</script>
+</body></html>"""
+    return HTMLResponse(content=html)
+
+# Insert debug routes at the BEGINNING of the route list (before catch-all)
+# We need to insert them before the catch-all route /{full_path:path}
+chainlit_server_app.include_router(debug_router)
+
+# Move our routes to the front of the list (before catch-all)
+# This is a hack but necessary because Chainlit's catch-all would otherwise match first
+routes_to_move = []
+for route in chainlit_server_app.routes:
+    if hasattr(route, 'path') and route.path in ['/_debug/data', '/dev']:
+        routes_to_move.append(route)
+
+for route in routes_to_move:
+    chainlit_server_app.routes.remove(route)
+    chainlit_server_app.routes.insert(0, route)  # Insert at beginning
+
+logger.info("Debug routes registered and moved to front: /_debug/data and /dev")
 
 def _normalize_container_name(container: Optional[str]) -> str:
     if not container:
@@ -81,205 +84,6 @@ IMAGES_CONTAINER = _normalize_container_name(
     config.get("DOCUMENTS_IMAGES_STORAGE_CONTAINER", "", str)
 )
 IMAGE_EXTENSIONS = {"bmp", "jpeg", "jpg", "png", "tiff"}
-
-
-def format_timing_panel(debug_info: dict) -> str:
-    """
-    Format timing statistics into a Markdown string.
-    """
-    import json
-    
-    lines = []
-    
-    total_ms = debug_info.get("total_duration_ms", 0)
-    lines.append(f"**總耗時**: {total_ms:.0f} ms ({total_ms/1000:.2f} 秒)")
-    lines.append("")
-    
-    # Timing breakdown table
-    timings = debug_info.get("timings", [])
-    if timings:
-        lines.append("| 階段 | 開始時間 | 耗時 (ms) | 說明 |")
-        lines.append("|------|----------|-----------|------|")
-        for t in timings:
-            stage = t.get("stage", "")
-            start = t.get("start_time", "")[:19].replace("T", " ")
-            duration = t.get("duration_ms", 0)
-            details = t.get("details", "")
-            lines.append(f"| {stage} | {start} | {duration:.1f} | {details} |")
-    
-    # Search timing breakdown
-    search_debug = debug_info.get("search_debug", {})
-    if search_debug:
-        lines.append("")
-        lines.append("### 🔍 搜尋時間細分")
-        lines.append(f"- **Embeddings**: {search_debug.get('embeddings_time_ms', 0):.1f} ms")
-        lines.append(f"- **AI Search**: {search_debug.get('search_time_ms', 0):.1f} ms")
-        lines.append(f"- **總搜尋時間**: {search_debug.get('total_time_ms', 0):.1f} ms")
-        lines.append(f"- **結果數量**: {search_debug.get('results_count', 0)}")
-    
-    return "\n".join(lines)
-
-
-def format_prompting_panel(debug_info: dict) -> str:
-    """
-    Format prompting details into a Markdown string.
-    """
-    import json
-    
-    lines = []
-    
-    # Model info
-    model_name = debug_info.get("model_name", "unknown")
-    lines.append(f"**模型**: `{model_name}`")
-    lines.append("")
-    
-    # System Prompt
-    system_prompt = debug_info.get("system_prompt", "")
-    if system_prompt:
-        lines.append("### 🤖 System Prompt")
-        lines.append("```")
-        if len(system_prompt) > 2000:
-            lines.append(system_prompt[:2000] + "\n... (truncated)")
-        else:
-            lines.append(system_prompt)
-        lines.append("```")
-        lines.append("")
-    
-    # User Message
-    user_message = debug_info.get("user_message", "")
-    if user_message:
-        lines.append("### 👤 User Message")
-        lines.append("```")
-        lines.append(user_message)
-        lines.append("```")
-        lines.append("")
-    
-    # Search Query and Results
-    search_debug = debug_info.get("search_debug", {})
-    if search_debug:
-        query = search_debug.get("query", "")
-        if query:
-            lines.append("### 🔎 Search Query")
-            lines.append(f"**查詢**: `{query}`")
-            lines.append("")
-            lines.append(f"**索引**: `{search_debug.get('index_name', '')}`")
-            lines.append(f"**方法**: `{search_debug.get('search_approach', '')}`")
-            lines.append(f"**Top K**: `{search_debug.get('top_k', 0)}`")
-            lines.append("")
-            
-            # Search body
-            search_body = search_debug.get("search_body", {})
-            if search_body:
-                lines.append("**Search Body**:")
-                lines.append("```json")
-                lines.append(json.dumps(search_body, indent=2, ensure_ascii=False))
-                lines.append("```")
-            lines.append("")
-        
-        # Search Results Preview
-        results_preview = search_debug.get("results_preview", [])
-        if results_preview:
-            lines.append("### 📄 Search Results")
-            for i, r in enumerate(results_preview, 1):
-                lines.append(f"**{i}. {r.get('title', 'No Title')}**")
-                lines.append(f"- Link: `{r.get('link', '')}`")
-                preview = r.get('content_preview', '')
-                if preview:
-                    lines.append(f"- Preview: {preview[:200]}...")
-                lines.append("")
-    
-    return "\n".join(lines)
-
-
-def clean_debug_info(debug_info: dict) -> dict:
-    """
-    Clean up debug info by removing unnecessary JSON tags and formatting.
-    """
-    import re
-    
-    cleaned = debug_info.copy()
-    
-    # Clean system prompt
-    if 'system_prompt' in cleaned and cleaned['system_prompt']:
-        prompt = cleaned['system_prompt']
-        # Remove XML-like tags
-        prompt = re.sub(r'<\/?json>', '', prompt, flags=re.IGNORECASE)
-        prompt = re.sub(r'<\/?data>', '', prompt, flags=re.IGNORECASE)
-        prompt = re.sub(r'<\/?content>', '', prompt, flags=re.IGNORECASE)
-        # Try to extract content from JSON wrapper
-        if prompt.strip().startswith('{'):
-            try:
-                import json
-                parsed = json.loads(prompt)
-                if isinstance(parsed, dict):
-                    if 'content' in parsed:
-                        prompt = parsed['content']
-                    elif 'text' in parsed:
-                        prompt = parsed['text']
-                    elif 'prompt' in parsed:
-                        prompt = parsed['prompt']
-            except:
-                pass
-        # Truncate if too long
-        if len(prompt) > 3000:
-            prompt = prompt[:3000] + '\n\n... (truncated)'
-        cleaned['system_prompt'] = prompt.strip()
-    
-    # Clean search body - remove overly verbose fields
-    if 'search_debug' in cleaned and cleaned['search_debug']:
-        search = cleaned['search_debug'].copy()
-        # Simplify search body
-        if 'search_body' in search and search['search_body']:
-            body = search['search_body']
-            # Keep only essential fields
-            simplified_body = {}
-            for key in ['search', 'filter', 'queryType', 'top', 'select']:
-                if key in body:
-                    simplified_body[key] = body[key]
-            # Truncate vectorQueries if present
-            if 'vectorQueries' in body:
-                simplified_body['vectorQueries'] = '[vector data omitted]'
-            search['search_body'] = simplified_body
-        
-        # Clean results preview - remove HTML tags but keep full content
-        if 'results_preview' in search and search['results_preview']:
-            cleaned_results = []
-            for r in search['results_preview']:  # Keep all results
-                # Clean content preview - remove HTML/Markdown tags
-                content_preview = r.get('content_preview', '')
-                # Remove HTML tags
-                content_preview = re.sub(r'<[^>]+>', ' ', content_preview)
-                # Remove Markdown formatting
-                content_preview = re.sub(r'#+ ', '', content_preview)
-                content_preview = re.sub(r'\*+', '', content_preview)
-                content_preview = re.sub(r'`+', '', content_preview)
-                # Remove extra whitespace
-                content_preview = re.sub(r'\s+', ' ', content_preview).strip()
-                
-                cleaned_results.append({
-                    'title': r.get('title', 'No Title'),
-                    'link': r.get('link', ''),
-                    'score': r.get('score'),  # Preserve score for display
-                    'content_preview': content_preview  # Full content, no truncation
-                })
-            search['results_preview'] = cleaned_results
-        
-        cleaned['search_debug'] = search
-    
-    return cleaned
-
-
-# Keep the old function for backward compatibility
-def format_debug_panel(debug_info: dict) -> str:
-    """
-    Format debug info into a Markdown string for display.
-    Creates two sections: Timing Statistics and Prompting Details.
-    """
-    timing = format_timing_panel(debug_info)
-    prompting = format_prompting_panel(debug_info)
-    return f"## ⏱️ 時間統計\n\n{timing}\n\n---\n\n## 📝 Prompting 詳情\n\n{prompting}"
-
-
 
 def extract_conversation_id_from_chunk(chunk: str) -> Tuple[Optional[str], str]:
     match = UUID_REGEX.match(chunk)
@@ -334,34 +138,13 @@ def generate_blob_sas_url(container: str, blob_name: str, expiry_hours: int = 1)
 def resolve_reference_href(raw_href: str) -> Optional[str]:
     """
     Resolve a reference href to a SAS URL. Returns None if the blob doesn't exist.
-    For Azure Blob Storage URLs, generates a SAS token to enable download.
     """
     href = (raw_href or "").strip()
     if not href:
         return None
 
     split_href = urllib.parse.urlsplit(href)
-    
-    # Check if this is an Azure Blob Storage URL that needs SAS token
-    if split_href.scheme and split_href.netloc:
-        # If it's an Azure Blob Storage URL, extract container and blob name to generate SAS
-        if ".blob.core.windows.net" in split_href.netloc:
-            # Parse the blob URL: https://<account>.blob.core.windows.net/<container>/<blob_path>
-            path_parts = split_href.path.lstrip("/").split("/", 1)
-            if len(path_parts) >= 2:
-                container = path_parts[0]
-                blob_name = urllib.parse.unquote(path_parts[1])
-                logger.debug("Detected Azure Blob URL, extracting container=%s, blob=%s", container, blob_name)
-                try:
-                    sas_url = generate_blob_sas_url(container, blob_name)
-                    return sas_url
-                except FileNotFoundError:
-                    logger.info("Reference '%s' points to missing blob - omitting", raw_href)
-                    return None
-                except Exception:
-                    logger.warning("Failed to generate SAS for blob URL '%s' - omitting", raw_href)
-                    return None
-        # For other external URLs, return as-is
+    if split_href.scheme or split_href.netloc:
         return href
 
     if href.startswith("/api/download/") or href.startswith("api/download/"):
@@ -410,57 +193,10 @@ def resolve_reference_href(raw_href: str) -> Optional[str]:
     return sas_url
 
 
-# Regex to match plain Azure Blob Storage URLs (not already in markdown link format)
-# Uses file extension as the endpoint to handle URLs with parentheses and spaces in filenames
-# Matches URLs that:
-# 1. Are standalone (not preceded by '](')
-# 2. Are wrapped in parentheses like (https://...)
-AZURE_BLOB_URL_REGEX = re.compile(
-    r'(?<!\]\()(https://[a-zA-Z0-9]+\.blob\.core\.windows\.net/.+?\.(?:' + '|'.join(SUPPORTED_EXTENSIONS) + r'))(?=[\s\)\]\uff09\u3002\uff0c\uff1b]|$)',
-    re.IGNORECASE
-)
-
-def extract_filename_from_blob_url(url: str) -> str:
-    """Extract the filename from an Azure Blob URL for display."""
-    try:
-        parsed = urllib.parse.urlsplit(url)
-        path = urllib.parse.unquote(parsed.path)
-        # Get the last part of the path (filename)
-        filename = path.rsplit('/', 1)[-1] if '/' in path else path
-        return filename or "文件連結"
-    except Exception:
-        return "文件連結"
-
-def replace_plain_blob_urls(text: str, references: Optional[Set[str]] = None) -> str:
-    """
-    Replace plain Azure Blob Storage URLs with Markdown links containing SAS-signed URLs.
-    The display text is the filename extracted from the URL.
-    """
-    def replacer(match):
-        raw_url = match.group(1)
-        # Resolve the URL to get a SAS-signed version
-        resolved_url = resolve_reference_href(raw_url)
-        if resolved_url and resolved_url != raw_url:
-            if references is not None:
-                references.add(resolved_url)
-            # Extract filename for display
-            filename = extract_filename_from_blob_url(raw_url)
-            logger.debug("Replaced plain blob URL '%s' -> [%s](SAS URL)", raw_url[:80], filename)
-            # Return as Markdown link with filename as display text
-            return f"[{filename}]({resolved_url})"
-        # If we couldn't generate SAS, still wrap in markdown with filename
-        filename = extract_filename_from_blob_url(raw_url)
-        return f"[{filename}]({raw_url})"
-
-    return AZURE_BLOB_URL_REGEX.sub(replacer, text)
-
-
 def replace_source_reference_links(text: str, references: Optional[Set[str]] = None) -> str:
     """
     Replace source reference links in text. Links that point to non-existent blobs are completely removed.
-    Also handles plain Azure Blob URLs that are not in Markdown format.
     """
-    # First, handle Markdown-formatted links [text](url)
     def replacer(match):
         display_text = match.group(1)
         raw_href = match.group(2)
@@ -475,12 +211,7 @@ def replace_source_reference_links(text: str, references: Optional[Set[str]] = N
         logger.debug("Omitting reference '[%s](%s)' - target not found", display_text, raw_href)
         return ""
 
-    text = REFERENCE_REGEX.sub(replacer, text)
-    
-    # Then, handle plain Azure Blob URLs that are not in Markdown format
-    text = replace_plain_blob_urls(text, references)
-    
-    return text
+    return REFERENCE_REGEX.sub(replacer, text)
 
 def check_authorization() -> dict:
     app_user = cl.user_session.get("user")
@@ -516,75 +247,10 @@ if ENABLE_FEEDBACK:
 # Chainlit event handlers
 @cl.on_chat_start
 async def on_chat_start():
-    # Set up model selection dropdown and score threshold slider
-    settings = await cl.ChatSettings(
-        [
-            Select(
-                id="Model",
-                label="LLM 模型",
-                values=list(MODEL_OPTIONS.keys()),
-                initial_index=0,
-            ),
-            Select(
-                id="SearchIndex",
-                label="🗂️ 知識庫",
-                values=list(INDEX_OPTIONS.keys()),
-                initial_index=0,
-            ),
-            Slider(
-                id="ScoreThreshold",
-                label="搜尋相關性門檻 (Score Threshold)",
-                initial=0,
-                min=0,
-                max=0.05,
-                step=0.005,
-                description="0 = 不過濾 | Hybrid/Vector搜尋的RRF分數通常在0.01~0.03之間",
-            ),
-        ]
-    ).send()
-    
-    # Store initial model selection in session
-    initial_model_name = list(MODEL_OPTIONS.keys())[0]
-    cl.user_session.set("model_deployment", MODEL_OPTIONS[initial_model_name])
-    cl.user_session.set("model_display_name", initial_model_name)
-    
-    # Store initial index selection in session
-    initial_index_name = list(INDEX_OPTIONS.keys())[0]
-    cl.user_session.set("search_index", INDEX_OPTIONS[initial_index_name])
-    cl.user_session.set("index_display_name", initial_index_name)
-    
-    # Store initial score threshold (0 = disabled)
-    cl.user_session.set("score_threshold", 0)
-    logger.info(f"Chat started with model: {MODEL_OPTIONS[initial_model_name]}, index: {INDEX_OPTIONS[initial_index_name]}, score_threshold: 0")
-
-
-@cl.on_settings_update
-async def on_settings_update(settings):
-    """Handle model selection, index selection, and score threshold changes from the UI"""
-    # Handle model selection
-    selected_model_name = settings.get("Model")
-    if selected_model_name and selected_model_name in MODEL_OPTIONS:
-        model_deployment = MODEL_OPTIONS[selected_model_name]
-        cl.user_session.set("model_deployment", model_deployment)
-        cl.user_session.set("model_display_name", selected_model_name)
-        # Store the model name for display before next message
-        cl.user_session.set("pending_model_switch", selected_model_name)
-        logger.info(f"User switched model to: {model_deployment} ({selected_model_name})")
-    
-    # Handle search index selection
-    selected_index_name = settings.get("SearchIndex")
-    if selected_index_name and selected_index_name in INDEX_OPTIONS:
-        search_index = INDEX_OPTIONS[selected_index_name]
-        cl.user_session.set("search_index", search_index)
-        cl.user_session.set("index_display_name", selected_index_name)
-        # Store for display notification
-        cl.user_session.set("pending_index_switch", selected_index_name)
-        logger.info(f"User switched index to: {search_index} ({selected_index_name})")
-    
-    # Handle score threshold
-    score_threshold = settings.get("ScoreThreshold", 0)
-    cl.user_session.set("score_threshold", float(score_threshold))
-    logger.info(f"Score threshold updated to: {score_threshold}")
+    pass
+    # app_user = cl.user_session.get("user")
+    # if app_user:
+        # await cl.Message(content=f"Hello {app_user.metadata.get('user_name')}").send()
 
 @cl.on_message
 async def handle_message(message: cl.Message):
@@ -627,8 +293,7 @@ async def handle_message(message: cl.Message):
             _trim_for_log(message.content),
         )
 
-        # Don't send empty token here - let the status message show first
-        # await response_msg.stream_token(" ")
+        await response_msg.stream_token(" ")
 
         buffer = ""
         full_text = ""
@@ -648,127 +313,21 @@ async def handle_message(message: cl.Message):
             message.id,
             _trim_for_log(message.content),
         )
-        
-        # Get selected model from session
-        model_deployment = cl.user_session.get("model_deployment") or DEFAULT_MODEL
-        logger.info(f"Using model deployment: {model_deployment}")
-        
-        # Get score threshold from session (0 = disabled)
-        score_threshold = cl.user_session.get("score_threshold", 0)
-        logger.info(f"Using score threshold: {score_threshold}")
-        
-        # Check if there's a pending model switch notification to show first
-        pending_model_switch = cl.user_session.get("pending_model_switch")
-        if pending_model_switch:
-            await cl.Message(content=f"✅ 已切換至 **{pending_model_switch}** 模型").send()
-            cl.user_session.set("pending_model_switch", None)  # Clear the flag
-        
-        # Show initial status message with dynamic timing
-        status_start_time = time_module.time()
-        stage_times = {}  # Track time spent in each stage
-        current_stage = "thinking"
-        stage_start_time = status_start_time
-        timer_running = True  # Flag to control the timer task
-        
-        # Hourglass animation frames for realistic sand flowing effect
-        # Sequence: flowing (⏳) -> done (⌛) -> flip back to flowing (⏳)
-        hourglass_frames = ["⏳", "⏳", "⌛", "⌛", "⏳", "⏳"]
-        hourglass_index = [0]  # Use list to allow modification in nested function
-        
-        def format_dynamic_status():
-            """Format status message with hourglass animation"""
-            # Cycle through hourglass frames
-            current_hourglass = hourglass_frames[hourglass_index[0] % len(hourglass_frames)]
-            hourglass_index[0] += 1
-            
-            lines = []
-            for stage in STAGE_ORDER:
-                stage_info = STATUS_MESSAGES.get(stage)
-                if not stage_info:
-                    continue
-                icon, name = stage_info
-                if stage in stage_times:
-                    # Completed stage
-                    lines.append(f"✓ {icon} {name}")
-                elif stage == current_stage:
-                    # Current active stage - show hourglass animation
-                    lines.append(f"{icon} {name} {current_hourglass}")
-                # Skip future stages
-            
-            if lines:
-                return "\n".join(lines)
-            return "🤔 處理中..."
-        
-        status_msg = cl.Message(content=format_dynamic_status())
-        await status_msg.send()
-        
-        # Background task to update timer every 500ms
-        async def update_timer():
-            nonlocal timer_running
-            while timer_running:
-                await asyncio.sleep(0.5)  # Update every 500ms
-                if timer_running and current_stage:
-                    try:
-                        status_msg.content = format_dynamic_status()
-                        await status_msg.update()
-                    except Exception as e:
-                        logger.debug(f"Timer update failed: {e}")
-                        break
-        
-        # Start the timer task
-        timer_task = asyncio.create_task(update_timer())
-        
-        # Get search index from session
-        search_index = cl.user_session.get("search_index")
-        
-        generator = call_orchestrator_stream(conversation_id, message.content, auth_info, message.id, model_deployment, score_threshold, search_index)
+        generator = call_orchestrator_stream(conversation_id, message.content, auth_info, message.id)
 
         chunk_count = 0
         first_content_seen = False
-        status_removed = False
+        
+        # Timing tracking for debug mode
+        request_start_time = time.time()
+        first_chunk_time = None
 
         try:
             async for chunk in generator:
-                # Check for status events (e.g., [STATUS:thinking])
-                status_match = STATUS_PATTERN.match(chunk)
-                if status_match:
-                    status_type = status_match.group(1)
-                    status_info = STATUS_MESSAGES.get(status_type)
-                    
-                    if status_info and not status_removed:
-                        # Record time for previous stage
-                        now = time_module.time()
-                        if current_stage and current_stage != status_type:
-                            stage_times[current_stage] = now - stage_start_time
-                        
-                        # Update to new stage
-                        current_stage = status_type
-                        stage_start_time = now
-                        
-                        # Update status display
-                        status_msg.content = format_dynamic_status()
-                        await status_msg.update()
-                        logger.info(f"[Status] Stage: {status_type}")
-                    elif status_type == "done" and not status_removed:
-                        # Final stage - record last timing
-                        if current_stage:
-                            stage_times[current_stage] = time_module.time() - stage_start_time
-                        current_stage = None
-                    continue  # Don't process status events as content
-
-                # Check for debug events (e.g., [DEBUG:{json}])
-                debug_match = DEBUG_PATTERN.match(chunk)
-                if debug_match:
-                    try:
-                        import json
-                        debug_json = debug_match.group(1)
-                        debug_info = json.loads(debug_json)
-                        # Store debug info for later display
-                        cl.user_session.set("last_debug_info", debug_info)
-                        logger.info("[Debug] Received debug info from orchestrator")
-                    except json.JSONDecodeError as e:
-                        logger.warning(f"[Debug] Failed to parse debug JSON: {e}")
-                    continue  # Don't process debug events as content
+                # Track first chunk time (TTFB)
+                if first_chunk_time is None:
+                    first_chunk_time = time.time()
+                # logging.info("[app] Chunk received: %s", chunk)
 
                 # Extract and update conversation ID
                 extracted_id, cleaned_chunk = extract_conversation_id_from_chunk(chunk)
@@ -779,19 +338,6 @@ async def handle_message(message: cl.Message):
 
                 normalized_preview = cleaned_chunk.strip().lower()
                 if not first_content_seen and normalized_preview:
-                    # Remove status message when actual content starts
-                    if not status_removed:
-                        # Stop the timer task first
-                        timer_running = False
-                        timer_task.cancel()
-                        try:
-                            await timer_task
-                        except asyncio.CancelledError:
-                            pass
-                        await status_msg.remove()
-                        status_removed = True
-                        logger.info("[Status] Removed - content starting")
-                    
                     if (
                         normalized_preview.startswith("<!doctype")
                         or normalized_preview.startswith("<html")
@@ -847,15 +393,6 @@ async def handle_message(message: cl.Message):
                     buffer = buffer[safe_flush_length:]
 
         except Exception as e:
-            # Stop timer and remove status message on error
-            timer_running = False
-            timer_task.cancel()
-            try:
-                await timer_task
-            except asyncio.CancelledError:
-                pass
-            if not status_removed:
-                await status_msg.remove()
             user_error_message = (
                 "We hit a technical issue while processing your request. "
                 "Please contact the application support team and share reference "
@@ -892,6 +429,22 @@ async def handle_message(message: cl.Message):
         final_text = replace_source_reference_links(
             full_text.replace(TERMINATE_TOKEN, ""), references
         )
+        
+        # Calculate timing info
+        total_time = time.time() - request_start_time
+        ttfb = (first_chunk_time - request_start_time) if first_chunk_time else total_time
+        streaming_time = (time.time() - first_chunk_time) if first_chunk_time else 0
+        
+        # Store debug data via API (accessible by debug-panels.js)
+        timing_data = {"ttfb": round(ttfb, 2), "streaming": round(streaming_time, 2), "total": round(total_time, 2), "chunks": chunk_count}
+        prompting_data = {"user_message": message.content[:100], "conversation_id": conversation_id}
+        
+        try:
+            set_debug_data(conversation_id, timing_data, prompting_data)
+            logger.debug("Debug data stored for conversation %s", conversation_id)
+        except Exception as e:
+            logger.debug("Failed to store debug data: %s", e)
+        
         response_msg.content = final_text
         await response_msg.update()
 
@@ -903,31 +456,3 @@ async def handle_message(message: cl.Message):
             len(final_text),
             _trim_for_log(final_text),
         )
-
-        # Display debug info in side panels via hidden data element
-        debug_info = cl.user_session.get("last_debug_info")
-        if debug_info:
-            try:
-                import json
-                import html
-                import base64
-                # Clean up the debug info - remove unnecessary nested JSON
-                cleaned_debug = clean_debug_info(debug_info)
-                
-                # Convert to JSON and then base64 encode to avoid HTML parsing issues
-                debug_json = json.dumps(cleaned_debug, ensure_ascii=False)
-                debug_b64 = base64.b64encode(debug_json.encode('utf-8')).decode('ascii')
-                
-                # Send as hidden data with base64 encoded content
-                hidden_content = f'<div class="debug-data-hidden" data-debug-b64="{debug_b64}">DEBUG_DATA</div>'
-                
-                debug_msg = cl.Message(
-                    content=hidden_content,
-                )
-                await debug_msg.send()
-                
-                logger.info("[Debug] Debug info sent to side panels (base64 encoded)")
-                # Clear the debug info after displaying
-                cl.user_session.set("last_debug_info", None)
-            except Exception as e:
-                logger.warning(f"[Debug] Failed to send debug info: {e}")

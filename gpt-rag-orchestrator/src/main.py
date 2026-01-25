@@ -128,40 +128,24 @@ async def orchestrator_endpoint(
         raise HTTPException(status_code=400, detail="No 'ask' or 'question' field in request body")
 
     user_context = body.user_context or {}
-    model_deployment = getattr(body, "model_deployment", None)
-    score_threshold = getattr(body, "score_threshold", None)
-    search_index = getattr(body, "search_index", None)
 
     orchestrator = await Orchestrator.create(
         conversation_id=body.conversation_id,
-        user_context=user_context,
-        model_deployment=model_deployment,
-        score_threshold=score_threshold,
-        search_index=search_index
+        user_context=user_context
     )
 
     async def sse_event_generator():
         try:
             _qid = getattr(body, "question_id", None) 
             async for chunk in orchestrator.stream_response(ask, _qid):
-                # Encode newlines to prevent SSE parsing issues
-                # Frontend will decode \\n back to \n
-                encoded_chunk = chunk.replace("\n", "\\n") if chunk else chunk
-                # Use proper SSE format: data: <content>\n\n
-                # This ensures each chunk is sent immediately without buffering
-                yield f"data: {encoded_chunk}\n\n"
+                yield f"{chunk}"
         except Exception as e:
             logging.exception("Error in SSE generator")
             yield "event: error\ndata: An internal server error occurred.\n\n"
 
     return StreamingResponse(
         sse_event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"  # Disable nginx buffering
-        }
+        media_type="text/event-stream"
     )
 
 # Instrumentation

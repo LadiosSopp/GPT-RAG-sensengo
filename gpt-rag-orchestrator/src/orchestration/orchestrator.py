@@ -28,7 +28,7 @@ class Orchestrator:
         self.database_container = cfg.get("CONVERSATIONS_DATABASE_CONTAINER", "conversations")
         
     @classmethod
-    async def create(cls, conversation_id: str = None, user_context: Dict = {}, model_deployment: str = None, score_threshold: float = None, search_index: str = None):
+    async def create(cls, conversation_id: str = None, user_context: Dict = {}):
         instance = cls(conversation_id=conversation_id)
 
         # app configuration
@@ -41,21 +41,6 @@ class Orchestrator:
             raise EnvironmentError("AGENT_STRATEGY must be set")
 
         instance.agentic_strategy.user_context = user_context
-        
-        # Override model deployment if specified by user
-        if model_deployment:
-            logging.info(f"[Orchestrator] Using user-specified model deployment: {model_deployment}")
-            instance.agentic_strategy.model_name = model_deployment
-        
-        # Override score threshold if specified by user
-        if score_threshold is not None and score_threshold > 0:
-            logging.info(f"[Orchestrator] Using user-specified score threshold: {score_threshold}")
-            instance.agentic_strategy.score_threshold = score_threshold
-        
-        # Override search index if specified by user
-        if search_index:
-            logging.info(f"[Orchestrator] Using user-specified search index: {search_index}")
-            instance.agentic_strategy.search_index = search_index
 
         return instance
 

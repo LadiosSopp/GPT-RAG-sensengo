@@ -71,23 +71,11 @@ class AzureOpenAIClient:
         ]
 
         try:
-            # Use max_completion_tokens for newer models (o1, o3, gpt-4o, gpt-5, etc.)
-            # Fall back to max_tokens for older models (gpt-4, gpt-35-turbo, etc.)
-            model_lower = (self.chat_deployment or "").lower()
-            use_new_param = any(m in model_lower for m in ["o1", "o3", "gpt-4o", "gpt-5", "gpt5"])
-            
-            if use_new_param:
-                resp = self.client.chat.completions.create(
-                    model      = self.chat_deployment,
-                    messages   = messages,
-                    max_completion_tokens = max_tokens
-                )
-            else:
-                resp = self.client.chat.completions.create(
-                    model      = self.chat_deployment,
-                    messages   = messages,
-                    max_tokens = max_tokens
-                )
+            resp = self.client.chat.completions.create(
+                model      = self.chat_deployment,
+                messages   = messages,
+                max_completion_tokens = max_tokens
+            )
             return resp.choices[0].message.content
 
         except openai.RateLimitError as e:

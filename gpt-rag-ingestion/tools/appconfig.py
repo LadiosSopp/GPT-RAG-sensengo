@@ -42,9 +42,9 @@ class AppConfigClient:
         - AZURE_CLIENT_ID: Client ID for User-Assigned Managed Identity (optional)
         - AZURE_APPCONFIG_CONNECTION_STRING: Fallback connection string (optional)
         """
-        # Read client_id for Managed Identity authentication (optional - empty string is valid)
-        # Azure automatically injects this for User-Assigned MI; remains empty for System-Assigned MI
-        self.client_id = os.environ.get('AZURE_CLIENT_ID', "")
+        # Read client_id for Managed Identity authentication (optional)
+        # Use None for System Assigned Managed Identity, only set client_id for User Assigned
+        self.client_id = os.environ.get('AZURE_CLIENT_ID') or None
         
         # Control flag for allowing direct environment variable fallback in get_value()
         self.allow_env_vars = False

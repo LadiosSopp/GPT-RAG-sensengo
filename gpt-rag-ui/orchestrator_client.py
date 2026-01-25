@@ -1,8 +1,6 @@
 import os
 import logging
-import time
-import re
-from typing import Optional, Tuple
+from typing import Optional
 
 import httpx
 from azure.identity import ManagedIdentityCredential, AzureCliCredential, ChainedTokenCredential
@@ -11,9 +9,6 @@ from dependencies import get_config
 
 logger = logging.getLogger("gpt_rag_ui.orchestrator_client")
 config = get_config()
-
-# Regex pattern for status events from orchestrator
-STATUS_PATTERN = re.compile(r'\[STATUS:(\w+)\]')
 
 
 def _get_config_value(key: str, *, default=None, allow_none: bool = False):
@@ -43,7 +38,7 @@ def get_managed_identity_token():
     return credential.get_token("https://management.azure.com/.default").token
 
 
-async def call_orchestrator_stream(conversation_id: str, question: str, auth_info: dict, question_id: str | None = None, model_deployment: str | None = None, score_threshold: float | None = None, search_index: str | None = None):    
+async def call_orchestrator_stream(conversation_id: str, question: str, auth_info: dict, question_id: str | None = None):    
     # Read Dapr settings and target app ID
     orchestrator_app_id = "orchestrator"
     base_url = _get_orchestrator_base_url()
@@ -85,102 +80,21 @@ async def call_orchestrator_stream(conversation_id: str, question: str, auth_inf
     }
 
     if question_id:
-        payload["question_id"] = question_id
-    
-    # Add model deployment if specified
-    if model_deployment:
-        payload["model_deployment"] = model_deployment
-        logger.info("[SSE-Timing] Using model deployment: %s", model_deployment)
-    
-    # Add score threshold if specified (0 = disabled)
-    if score_threshold is not None and score_threshold > 0:
-        payload["score_threshold"] = score_threshold
-        logger.info("[SSE-Timing] Using score threshold: %s", score_threshold)
-    
-    # Add search index if specified
-    if search_index:
-        payload["search_index"] = search_index
-        logger.info("[SSE-Timing] Using search index: %s", search_index)
+        payload["question_id"] = question_id 
 
-    # Timing analysis for SSE streaming
-    request_start_time = time.perf_counter()
-    first_chunk_time = None
-    chunk_count = 0
-    total_chars = 0
-    last_chunk_time = request_start_time
-
-    logger.info("[SSE-Timing] Request started at %.3f", request_start_time)
 
     # Invoke through Dapr sidecar and stream response
     async with httpx.AsyncClient(timeout=None) as client:
         async with client.stream("POST", url, json=payload, headers=headers) as response:
-            connection_time = time.perf_counter()
-            logger.info("[SSE-Timing] Connection established in %.3fs", connection_time - request_start_time)
-            
             if response.status_code >= 400:
                 body = await response.aread()
                 raise Exception(
                     f"Error invoking orchestrator (HTTP {response.status_code}): "
                     f"{response.reason_phrase}. Details: {body.decode(errors='ignore')}"
                 )
-            # Parse SSE format: each message is "data: <content>\n\n"
-            async for line in response.aiter_lines():
-                current_time = time.perf_counter()
-                
-                if line.startswith("data: "):
-                    chunk = line[6:]  # Remove "data: " prefix
-                    if chunk:
-                        # Check for status events (e.g., [STATUS:thinking])
-                        # These are forwarded to frontend for UI updates
-                        status_match = STATUS_PATTERN.match(chunk)
-                        if status_match:
-                            status_type = status_match.group(1)
-                            logger.info("[SSE-Status] Received status: %s", status_type)
-                            # Yield status event as-is for frontend to handle
-                            yield chunk
-                            continue
-                        
-                        chunk_count += 1
-                        total_chars += len(chunk)
-                        
-                        if first_chunk_time is None:
-                            first_chunk_time = current_time
-                            ttfb = first_chunk_time - request_start_time
-                            logger.info("[SSE-Timing] TTFB (Time to First Byte): %.3fs", ttfb)
-                        
-                        # Log every 10th chunk or first 5 chunks for detailed analysis
-                        if chunk_count <= 5 or chunk_count % 10 == 0:
-                            gap = current_time - last_chunk_time
-                            logger.info("[SSE-Timing] Chunk #%d: +%.3fs (gap=%.4fs, chars=%d)", 
-                                       chunk_count, current_time - request_start_time, gap, len(chunk))
-                        
-                        last_chunk_time = current_time
-                        yield chunk
-                elif line.startswith("event: error"):
-                    # Handle error events
-                    continue
-                elif line and not line.startswith("event:"):
-                    # Fallback for non-SSE format (backward compatibility)
-                    chunk_count += 1
-                    total_chars += len(line)
-                    if first_chunk_time is None:
-                        first_chunk_time = current_time
-                        logger.info("[SSE-Timing] TTFB (non-SSE): %.3fs", first_chunk_time - request_start_time)
-                    yield line
-    
-    # Final timing summary
-    end_time = time.perf_counter()
-    total_duration = end_time - request_start_time
-    streaming_duration = end_time - (first_chunk_time or end_time)
-    
-    logger.info("[SSE-Timing] === STREAMING SUMMARY ===")
-    logger.info("[SSE-Timing] Total duration: %.3fs", total_duration)
-    logger.info("[SSE-Timing] TTFB: %.3fs", (first_chunk_time - request_start_time) if first_chunk_time else 0)
-    logger.info("[SSE-Timing] Streaming duration: %.3fs", streaming_duration)
-    logger.info("[SSE-Timing] Total chunks: %d, Total chars: %d", chunk_count, total_chars)
-    if chunk_count > 0 and streaming_duration > 0:
-        logger.info("[SSE-Timing] Avg chars/chunk: %.1f, Streaming rate: %.1f chars/s", 
-                   total_chars / chunk_count, total_chars / streaming_duration)
+            async for chunk in response.aiter_text():
+                if chunk:
+                    yield chunk
 
 
 

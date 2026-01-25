@@ -634,17 +634,44 @@ class BlobStorageDocumentIndexer:
 
     async def _upload_in_batches(self, docs: List[Dict[str, Any]]):
         if not docs:
+            logging.info(f"[{self.cfg.indexer_name}] _upload_in_batches: no docs to upload")
             return
-        for batch in _chunk(docs, self.cfg.batch_size):
-            await self._with_backoff(self._search_client.upload_documents, documents=batch)
+        logging.info(f"[{self.cfg.indexer_name}] _upload_in_batches: uploading {len(docs)} docs in batches of {self.cfg.batch_size}")
+        total_succeeded = 0
+        total_failed = 0
+        for i, batch in enumerate(_chunk(docs, self.cfg.batch_size)):
+            logging.info(f"[{self.cfg.indexer_name}] _upload_in_batches: uploading batch {i+1} with {len(batch)} docs")
+            result = await self._with_backoff(self._search_client.upload_documents, documents=batch)
+            # Check individual document results
+            batch_succeeded = 0
+            batch_failed = 0
+            if result:
+                for res in result:
+                    if res.succeeded:
+                        batch_succeeded += 1
+                    else:
+                        batch_failed += 1
+                        error_msgs = ""
+                        try:
+                            error_msgs = "; ".join([str(err) for err in (res.error_messages or [])])
+                        except Exception:
+                            error_msgs = "Unknown error"
+                        logging.error(f"[{self.cfg.indexer_name}] _upload_in_batches: document upload failed: {error_msgs}, key={getattr(res, 'key', 'unknown')}")
+            total_succeeded += batch_succeeded
+            total_failed += batch_failed
+            logging.info(f"[{self.cfg.indexer_name}] _upload_in_batches: batch {i+1} completed - succeeded={batch_succeeded}, failed={batch_failed}")
+        if total_failed > 0:
+            raise RuntimeError(f"Upload failed for {total_failed}/{total_succeeded + total_failed} documents")
 
     async def _with_backoff(self, func, **kwargs):
         # Respect retry-after-ms if present; exponential fallback
         delay = 1.0
+        last_error = None
         for attempt in range(8):
             try:
                 return await func(**kwargs)
             except HttpResponseError as e:
+                last_error = e
                 ra = None
                 try:
                     ra = e.response.headers.get("retry-after-ms") or e.response.headers.get("Retry-After")
@@ -655,13 +682,18 @@ class BlobStorageDocumentIndexer:
                         delay = max(delay, float(ra) / 1000.0)
                     except Exception:
                         pass
-                logging.warning(f"[{self.cfg.indexer_name}] backoff {delay}s on {type(e).__name__}: {e}")
+                logging.warning(f"[{self.cfg.indexer_name}] backoff {delay}s on {type(e).__name__} (attempt {attempt+1}/8): {e}")
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, 30)
             except ServiceRequestError as e:
-                logging.warning(f"[{self.cfg.indexer_name}] network error; retrying in {delay}s: {e}")
+                last_error = e
+                logging.warning(f"[{self.cfg.indexer_name}] network error (attempt {attempt+1}/8); retrying in {delay}s: {e}")
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, 30)
+        # All retries exhausted - re-raise last error
+        if last_error:
+            logging.error(f"[{self.cfg.indexer_name}] _with_backoff: all 8 retries exhausted, raising: {last_error}")
+            raise last_error
 
     # ---------- Logging helpers ----------
     async def _ensure_container(self, name: str):

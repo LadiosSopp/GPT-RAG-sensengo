@@ -17,6 +17,6 @@ COPY . .
 # Expose port 80
 EXPOSE 80
 
-# Launch via Uvicorn
-#CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port 80 || sleep 3600"]
+# Launch via Chainlit (using chainlit run for proper Chainlit initialization)
+# Debug data will be embedded in the Chainlit response instead of separate API
 CMD ["chainlit", "run", "app.py", "--host", "0.0.0.0", "--port", "80"]

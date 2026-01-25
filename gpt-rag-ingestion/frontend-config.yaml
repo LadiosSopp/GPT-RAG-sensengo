@@ -1,0 +1,171 @@
+id: /subscriptions/2c9b3248-f263-4104-bd24-6446d4db84b9/resourceGroups/GPRAG/providers/Microsoft.App/containerapps/ca-2v3lfktkn4xam-frontend-gprag
+identity:
+  principalId: 9dc7b228-99b5-4d3f-9320-bba01cce1762
+  tenantId: 45f5172d-7608-4bd1-a52a-c3a7de0423d3
+  type: SystemAssigned
+location: East US 2
+name: ca-2v3lfktkn4xam-frontend-gprag
+properties:
+  configuration:
+    activeRevisionsMode: Single
+    dapr: null
+    identitySettings: []
+    ingress:
+      additionalPortMappings: null
+      allowInsecure: false
+      clientCertificateMode: null
+      corsPolicy: null
+      customDomains: null
+      exposedPort: 0
+      external: true
+      fqdn: ca-2v3lfktkn4xam-frontend-gprag.nicepond-9d5552be.eastus2.azurecontainerapps.io
+      ipSecurityRestrictions: null
+      stickySessions: null
+      targetPort: 80
+      traffic:
+      - latestRevision: true
+        weight: 100
+      transport: Auto
+    maxInactiveRevisions: null
+    registries:
+    - identity: system
+      passwordSecretRef: ''
+      server: cr2v3lfktkn4xamgprag.azurecr.io
+      username: ''
+    runtime: null
+    secrets: null
+    service: null
+  customDomainVerificationId: 713EED84D0BB8BCF4216709FBDB123CB902E3B514A5F9393893C52C43EDA5E4C
+  delegatedIdentities: []
+  environmentId: /subscriptions/2c9b3248-f263-4104-bd24-6446d4db84b9/resourceGroups/GPRAG/providers/Microsoft.App/managedEnvironments/cae-2v3lfktkn4xam-GPRAG
+  eventStreamEndpoint: https://eastus2.azurecontainerapps.dev/subscriptions/2c9b3248-f263-4104-bd24-6446d4db84b9/resourceGroups/GPRAG/containerApps/ca-2v3lfktkn4xam-frontend-gprag/eventstream
+  latestReadyRevisionName: ca-2v3lfktkn4xam-frontend-gprag--3i61pux
+  latestRevisionFqdn: ca-2v3lfktkn4xam-frontend-gprag--0000006.nicepond-9d5552be.eastus2.azurecontainerapps.io
+  latestRevisionName: ca-2v3lfktkn4xam-frontend-gprag--0000006
+  managedEnvironmentId: /subscriptions/2c9b3248-f263-4104-bd24-6446d4db84b9/resourceGroups/GPRAG/providers/Microsoft.App/managedEnvironments/cae-2v3lfktkn4xam-GPRAG
+  outboundIpAddresses:
+  - 20.1.250.250
+  - 20.1.251.135
+  - 20.7.131.26
+  - 20.7.130.240
+  - 20.7.131.54
+  - 20.7.131.60
+  - 20.7.131.34
+  - 20.7.131.59
+  - 20.7.131.44
+  - 20.7.131.5
+  - 20.7.131.39
+  - 20.7.131.50
+  - 20.1.251.104
+  - 172.200.51.234
+  - 172.200.52.27
+  - 172.200.51.44
+  - 172.200.51.235
+  - 172.200.51.243
+  - 172.200.51.45
+  - 172.200.51.191
+  - 172.200.51.242
+  - 172.200.52.26
+  - 172.200.51.190
+  - 20.1.251.2
+  - 4.153.75.54
+  - 172.193.97.218
+  - 68.220.18.20
+  - 172.193.72.214
+  - 20.161.102.207
+  - 130.213.148.50
+  - 68.220.243.198
+  - 13.68.118.203
+  - 13.68.119.127
+  - 52.184.147.35
+  - 52.184.147.9
+  - 20.94.111.32
+  - 20.94.110.46
+  - 20.97.130.219
+  - 20.69.200.68
+  - 52.167.135.54
+  - 52.184.149.238
+  - 52.179.250.88
+  - 52.184.149.147
+  - 52.184.198.180
+  - 52.184.138.179
+  - 52.179.253.112
+  - 52.184.190.79
+  - 52.184.141.185
+  - 52.184.151.206
+  - 20.97.132.38
+  - 4.153.163.131
+  - 20.36.242.179
+  - 20.36.243.222
+  - 20.36.243.227
+  - 20.36.243.208
+  - 128.85.230.186
+  - 4.153.163.156
+  - 20.36.242.169
+  - 4.153.163.201
+  - 20.36.244.19
+  - 20.97.133.137
+  - 20.36.244.21
+  - 20.36.243.201
+  - 128.85.220.176
+  - 128.85.212.114
+  - 135.18.214.171
+  - 20.85.91.213
+  - 128.85.239.223
+  - 4.153.23.192
+  - 4.153.23.210
+  - 4.153.23.204
+  - 20.94.122.99
+  - 4.153.23.173
+  - 20.94.122.65
+  - 20.94.122.133
+  - 20.94.122.111
+  - 20.94.122.70
+  - 20.94.122.101
+  - 130.213.251.138
+  - 68.220.200.118
+  - 172.175.128.181
+  - 172.193.48.200
+  - 68.220.140.24
+  - 68.220.243.140
+  - 20.161.90.45
+  - 20.15.73.80
+  - 172.193.33.53
+  - 48.214.4.169
+  - 20.15.85.47
+  provisioningState: Succeeded
+  runningStatus: Running
+  template:
+    containers:
+    - env:
+      - name: APP_CONFIG_ENDPOINT
+        value: https://appcs-2v3lfktkn4xam-gprag.azconfig.io
+      - name: AZURE_CLIENT_ID
+        value: 991d93e4-8822-49bb-b0d6-2c4f387e1159
+      image: cr2v3lfktkn4xamgprag.azurecr.io/azure-gpt-rag/frontend:85f9446
+      name: ca-2v3lfktkn4xam-frontend-gprag
+      resources:
+        cpu: 0.5
+        ephemeralStorage: 2Gi
+        memory: 1Gi
+    initContainers: null
+    revisionSuffix: ''
+    scale:
+      cooldownPeriod: 300
+      maxReplicas: 3
+      minReplicas: 1
+      pollingInterval: 30
+      rules: null
+    serviceBinds: null
+    terminationGracePeriodSeconds: null
+    volumes: null
+  workloadProfileName: Consumption
+resourceGroup: GPRAG
+systemData:
+  createdAt: '2026-01-23T00:51:41.5350069'
+  createdBy: v-ktseng@microsoft.com
+  createdByType: User
+  lastModifiedAt: '2026-01-23T02:21:45.6483168'
+  lastModifiedBy: v-ktseng@microsoft.com
+  lastModifiedByType: User
+type: Microsoft.App/containerApps

@@ -66,21 +66,6 @@ class OrchestratorRequest(BaseModel):
         description="Custom user context to pass along to orchestrator. (Optional)",
         example={}
     )
-    model_deployment: Optional[str] = Field(
-        None,
-        description="Override the default chat model deployment name. If not provided, uses CHAT_DEPLOYMENT_NAME from config. (Optional)",
-        example="gpt5-chat"
-    )
-    score_threshold: Optional[float] = Field(
-        None,
-        description="Override the search score threshold. Only results with score >= threshold are returned. 0 = disabled. (Optional)",
-        example=3.0
-    )
-    search_index: Optional[str] = Field(
-        None,
-        description="Override the default search index name. If not provided, uses SEARCH_RAG_INDEX_NAME from config. (Optional)",
-        example="ragindex-company-a"
-    )
 
     class Config:
         json_schema_extra = {

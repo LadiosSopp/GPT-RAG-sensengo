@@ -248,49 +248,49 @@ param useZoneRedundancy bool = false // Use Zone Redundancy
 param resourceToken string = toLower(uniqueString(subscription().id, environmentName, location))
 
 @description('Name of the Azure AI Foundry account to create or reference.')
-param aiFoundryAccountName string = '${const.abbrs.ai.aiFoundry}${resourceToken}'
+param aiFoundryAccountName string = '${const.abbrs.ai.aiFoundry}${resourceToken}-gprag'
 
 @description('Name of the AI Foundry project resource.')
-param aiFoundryProjectName string = '${const.abbrs.ai.aiFoundryProject}${resourceToken}'
+param aiFoundryProjectName string = '${const.abbrs.ai.aiFoundryProject}${resourceToken}-gprag'
 
 @description('Name of the Storage Account used by AI Foundry for blobs, queues, tables, and files.')
 param aiFoundryStorageAccountName string = replace('${const.abbrs.storage.storageAccount}${const.abbrs.ai.aiFoundry}${resourceToken}', '-', '')
 
 @description('Name of the Cognitive Search service provisioned for AI Foundry.')
-param aiFoundrySearchServiceName string = '${const.abbrs.ai.aiSearch}${const.abbrs.ai.aiFoundry}${resourceToken}'
+param aiFoundrySearchServiceName string = '${const.abbrs.ai.aiSearch}${const.abbrs.ai.aiFoundry}${resourceToken}-gprag'
 
 @description('Name of the Azure Cosmos DB account used by AI Foundry.')
-param aiFoundryCosmosDbName string = '${const.abbrs.databases.cosmosDBDatabase}${const.abbrs.ai.aiFoundry}${resourceToken}'
+param aiFoundryCosmosDbName string = '${const.abbrs.databases.cosmosDBDatabase}${const.abbrs.ai.aiFoundry}${resourceToken}-gprag'
 
 @description('Name of the Bing Search resource for grounding capabilities.')
 param bingSearchName string = '${const.abbrs.ai.bing}${resourceToken}'
 
 @description('Name of the Azure App Configuration store for centralized settings.')
-param appConfigName string = '${const.abbrs.configuration.appConfiguration}${resourceToken}'
+param appConfigName string = '${const.abbrs.configuration.appConfiguration}${resourceToken}-gprag'
 
 @description('Name of the Application Insights instance for monitoring.')
-param appInsightsName string = '${const.abbrs.managementGovernance.applicationInsights}${resourceToken}'
+param appInsightsName string = '${const.abbrs.managementGovernance.applicationInsights}${resourceToken}-gprag'
 
 @description('Name of the Azure Container Apps environment (log ingestion, VNet integration, etc.).')
-param containerEnvName string = '${const.abbrs.containers.containerAppsEnvironment}${resourceToken}'
+param containerEnvName string = '${const.abbrs.containers.containerAppsEnvironment}${resourceToken}-gprag'
 
 @description('Name of the Azure Container Registry for storing Docker images.')
-param containerRegistryName string = '${const.abbrs.containers.containerRegistry}${resourceToken}'
+param containerRegistryName string = '${const.abbrs.containers.containerRegistry}${resourceToken}gprag'
 
 @description('Name of the Cosmos DB account (alias for database operations).')
-param dbAccountName string = '${const.abbrs.databases.cosmosDBDatabase}${resourceToken}'
+param dbAccountName string = '${const.abbrs.databases.cosmosDBDatabase}${resourceToken}-gprag'
 
 @description('Name of the Cosmos DB database to host application data.')
-param dbDatabaseName string = '${const.abbrs.databases.cosmosDBDatabase}db${resourceToken}'
+param dbDatabaseName string = '${const.abbrs.databases.cosmosDBDatabase}db${resourceToken}-gprag'
 
 @description('Name of the Azure Key Vault for secrets, keys, and certificates.')
-param keyVaultName string = '${const.abbrs.security.keyVault}${resourceToken}'
+param keyVaultName string = '${const.abbrs.security.keyVault}${resourceToken}-gprag'
 
 @description('Name of the Log Analytics workspace for collecting and querying logs.')
-param logAnalyticsWorkspaceName string = '${const.abbrs.managementGovernance.logAnalyticsWorkspace}${resourceToken}'
+param logAnalyticsWorkspaceName string = '${const.abbrs.managementGovernance.logAnalyticsWorkspace}${resourceToken}-gprag'
 
 @description('Name of the Cognitive Search service.')
-param searchServiceName string = '${const.abbrs.ai.aiSearch}${resourceToken}'
+param searchServiceName string = '${const.abbrs.ai.aiSearch}${resourceToken}-gprag'
 
 @description('Name of the Azure Storage Account for general-purpose blob and file storage.')
 param storageAccountName string = '${const.abbrs.storage.storageAccount}${resourceToken}'
@@ -1580,7 +1580,7 @@ var varAfCosmosCfgComplete = {
 
 var varAfKVCfgComplete = {
   existingResourceId: keyVaultResourceId != '' ? keyVaultResourceId : null
-  name: '${const.abbrs.security.keyVault}ai-${resourceToken}'
+  name: '${const.abbrs.security.keyVault}ai-${resourceToken}-gpr'
   privateDnsZoneResourceId: _networkIsolation ? _dnsZoneKeyVaultId : null
   roleAssignments: []
 }
@@ -1926,9 +1926,9 @@ module containerAppsUAI 'br/public:avm/res/managed-identity/user-assigned-identi
 @batchSize(4)
 module containerApps 'br/public:avm/res/app/container-app:0.18.1' = [
   for (app, index) in containerAppsList: if (deployContainerApps) {
-    name: empty(app.name) ? '${const.abbrs.containers.containerApp}${resourceToken}-${app.service_name}' : app.name
+    name: empty(app.name) ? '${const.abbrs.containers.containerApp}${resourceToken}-${app.service_name}-gprag' : app.name
     params: {
-      name: empty(app.name) ? '${const.abbrs.containers.containerApp}${resourceToken}-${app.service_name}' : app.name
+      name: empty(app.name) ? '${const.abbrs.containers.containerApp}${resourceToken}-${app.service_name}-gprag' : app.name
       location: location
       #disable-next-line BCP318
       environmentResourceId: containerEnv.outputs.resourceId

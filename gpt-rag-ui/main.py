@@ -1,9 +1,10 @@
 import logging
 import os
+import json
 from io import BytesIO
 
 from fastapi import Response, Request, FastAPI
-from fastapi.responses import StreamingResponse, RedirectResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse, RedirectResponse, JSONResponse
 
 # Configure logging FIRST
 logging.basicConfig(
@@ -25,8 +26,14 @@ from dependencies import get_config
 config : AppConfigClient = get_config()
 logger.info("Configuration loaded from Azure App Configuration")
 
+# Import debug_store early for ASGI wrapper use
+from debug_store import get_debug_data
+
 # Import chainlit_app AFTER config is ready
 from chainlit.server import app as chainlit_app
+
+# Note: Debug middleware will be wrapped at the ASGI level after all routes are defined
+logger.info("Chainlit app imported, will add debug middleware wrapper at ASGI level")
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 
@@ -104,13 +111,25 @@ except Exception as e:
     logger.exception("Failed to mount blob_download_app")
     raise
 
+# Debug mode routes - only keep the JS file route (other routes handled by ASGI wrapper)
+from debug_store import set_debug_data
+
+@chainlit_app.get("/api/debug-panels.js")
+async def serve_debug_panels_js():
+    """Serve the debug panels JavaScript file"""
+    js_path = os.path.join(os.path.dirname(__file__), "public", "debug-panels.js")
+    if os.path.exists(js_path):
+        return FileResponse(js_path, media_type="application/javascript")
+    return Response("Debug panels not found", status_code=404)
+
+logger.info("Debug panels JS route registered at /api/debug-panels.js")
+
 # Import Chainlit event handlers
 import app as chainlit_handlers
 
 logger.info("Chainlit handlers imported")
 
-# ASGI entry point
-app = chainlit_app
+# Note: The ASGI entry point 'app' is defined at the bottom of this file as DebugASGIWrapper(chainlit_app)
 
 # Provide friendly app metadata used by OpenAPI (read version from VERSION file when present)
 chainlit_app.title = getattr(chainlit_app, "title", "GPT-RAG UI")
@@ -144,5 +163,66 @@ def _safe_openapi():
 
 chainlit_app.openapi = _safe_openapi
 
-FastAPIInstrumentor.instrument_app(app)
+# Wrap the app with debug middleware at ASGI level - this runs BEFORE Chainlit processes any routes
+class DebugASGIWrapper:
+    """ASGI wrapper that intercepts debug routes before they reach Chainlit"""
+    def __init__(self, app):
+        self.app = app
+    
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = scope.get("path", "")
+            
+            # Handle /_debug/data endpoint
+            if path == "/_debug/data":
+                data = get_debug_data()
+                body = json.dumps(data if data else {"error": "No debug data available", "status": "waiting"})
+                
+                async def send_response(send):
+                    await send({
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [[b"content-type", b"application/json"]],
+                    })
+                    await send({
+                        "type": "http.response.body",
+                        "body": body.encode(),
+                    })
+                
+                await send_response(send)
+                return
+            
+            # Handle /dev route
+            if path in ["/dev", "/dev/"]:
+                html_content = """<!DOCTYPE html>
+<html>
+<head><title>Enabling Debug Mode...</title>
+<style>body{font-family:-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white}.loader{text-align:center}.spinner{width:50px;height:50px;border:3px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px}@keyframes spin{to{transform:rotate(360deg)}}</style>
+</head>
+<body><div class="loader"><div class="spinner"></div><div>🐛 Enabling Debug Mode...</div></div>
+<script>localStorage.setItem('gptrag_debug','true');console.log('[Debug] Debug mode enabled');setTimeout(function(){window.location.href='/';},500);</script>
+</body></html>"""
+                
+                async def send_html(send):
+                    await send({
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [[b"content-type", b"text/html; charset=utf-8"]],
+                    })
+                    await send({
+                        "type": "http.response.body",
+                        "body": html_content.encode(),
+                    })
+                
+                await send_html(send)
+                return
+        
+        # Pass all other requests to the Chainlit app
+        await self.app(scope, receive, send)
+
+# The actual ASGI app with debug middleware wrapper
+app = DebugASGIWrapper(chainlit_app)
+logger.info("Debug ASGI middleware wrapper installed - /_debug/data and /dev routes active")
+
+FastAPIInstrumentor.instrument_app(chainlit_app)
 HTTPXClientInstrumentor().instrument()

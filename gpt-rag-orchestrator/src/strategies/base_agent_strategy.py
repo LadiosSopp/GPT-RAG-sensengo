@@ -22,7 +22,6 @@ class BaseAgentStrategy(ABC):
     strategy_type : AgentStrategies
     conversation : Dict
     user_context : Dict
-    search_index : Optional[str] = None  # Dynamic search index override
 
     def __init__(self):
         """
