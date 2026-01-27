@@ -373,4 +373,111 @@ fix: check upload_documents result in _upload_in_batches for proper error handli
 
 ---
 
-*最後更新：2026-01-26*
+*最後更新：2026-01-27*
+
+---
+
+## Session: 2026-01-27 - Debug 面板功能強化
+
+### 📋 工作摘要
+
+本次 session 實作了 **Debug 面板**功能強化，包含完整的 Timing 追蹤和 Prompting Details 顯示。
+
+---
+
+### ⏱️ 1. Timing 面板強化
+
+**新增功能：**
+- 顯示所有 Orchestrator 內部階段的執行時間
+- 新增 Orchestrator Total 和 End-to-End Total
+- 顯示 Components Sum vs Overhead（網路延遲分析）
+
+**Timing 階段：**
+| 圖示 | 階段 | 說明 |
+|------|------|------|
+| 🧵 | Thread Management | Thread 建立/取得 |
+| 🤖 | Agent Management | Agent 建立/取得 |
+| 📨 | Send Message | 發送訊息到 Agent |
+| 🤔 | LLM Thinking #1 | 第一次 LLM 推理 |
+| 🔧 | Tool Execution | 工具執行（RAG 搜尋） |
+| 💭 | LLM Thinking #2 | 第二次 LLM 推理 |
+| 📤 | Agent Response | Agent 回應處理 |
+| 📚 | Consolidate History | 整合對話歷史 |
+| 🧹 | Cleanup Agent | 清理 Agent |
+| ⏱️ | Orchestrator Total | Orchestrator 內部總時間 |
+| 🏁 | End-to-End Total | 完整請求時間（含網路） |
+
+**修改檔案：**
+- [gpt-rag-ui/public/debug-panels.js](../gpt-rag-ui/public/debug-panels.js) - 前端 timing 顯示邏輯
+
+---
+
+### 📝 2. Prompting Details 面板強化
+
+**新增功能：**
+- 📝 **User Message** - 完整用戶訊息
+- ⚙️ **System Prompt** - 系統提示（可滾動）
+- 🔧 **Tool Calls** - 工具調用詳情
+- 🔍 **Search Results** - 完整搜索結果，包含：
+  - 文檔標題
+  - 連結
+  - 內容預覽
+  - 相關性分數
+- 🤖 **LLM Calls** - LLM 調用詳情（model、tokens、duration）
+
+**修改檔案：**
+- [gpt-rag-ui/app.py](../gpt-rag-ui/app.py) - 後端 prompting_data 提取
+- [gpt-rag-ui/public/debug-panels.js](../gpt-rag-ui/public/debug-panels.js) - 前端顯示邏輯
+
+---
+
+### 🔧 3. 技術修復
+
+**問題 1: JSON 控制字元解析錯誤**
+- **錯誤：** `Failed to parse debug event JSON: Invalid control character`
+- **解決：** 在 `debug_store.py` 中清理控制字元（\n, \r, \t）
+
+**問題 2: Timing Key 名稱不匹配**
+- **問題：** 後端使用 `thread_management`，前端預期 `thread_creation`
+- **解決：** 在 JS 中添加 key 映射 fallback
+
+**問題 3: Prompting 面板高度不足**
+- **問題：** `max-height: 400px` 無法顯示完整內容
+- **解決：** 增加到 `max-height: 70vh`
+
+---
+
+### 🚀 4. 部署版本
+
+| 版本 | Image Tag | 說明 |
+|------|-----------|------|
+| v15 | ui:v15-json-fix | JSON 控制字元修復 |
+| v16 | ui:v16-timing-map | Timing key 映射修復 |
+| v17 | ui:v17-full-search | 完整搜索結果顯示 |
+| v18 | ui:v18-timing | 完整 timing 階段顯示 |
+
+**目前部署版本：** `ui:v18-timing`
+
+---
+
+### 📁 修改的檔案
+
+| 檔案 | 變更 |
+|------|------|
+| `gpt-rag-ui/app.py` | 提取 prompting_data（system_prompt, search_results, tool_calls, llm_calls） |
+| `gpt-rag-ui/debug_store.py` | JSON 控制字元清理 |
+| `gpt-rag-ui/public/debug-panels.js` | 完整 timing 階段、搜索結果顯示、面板高度調整 |
+
+---
+
+### 📌 使用方式
+
+1. 在 UI 輸入 `/debug` 啟用 Debug 模式
+2. 發送問題
+3. 右側面板顯示：
+   - **Timing** - 各階段執行時間
+   - **Prompting Details** - 完整的 prompting 資訊
+
+---
+
+*最後更新：2026-01-27*
