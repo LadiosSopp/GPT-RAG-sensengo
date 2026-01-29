@@ -1,6 +1,8 @@
 FROM mcr.microsoft.com/devcontainers/python:dev-3.12
 
-RUN apt-get update  
+# Remove yarn repository (causes GPG issues) and install prerequisites
+RUN rm -f /etc/apt/sources.list.d/yarn.list 2>/dev/null || true \
+    && apt-get update  
 RUN apt-get install ca-certificates -y
 RUN update-ca-certificates 
 

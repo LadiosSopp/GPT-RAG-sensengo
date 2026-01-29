@@ -66,6 +66,10 @@ class OrchestratorRequest(BaseModel):
         description="Custom user context to pass along to orchestrator. (Optional)",
         example={}
     )
+    debug_mode: Optional[bool] = Field(
+        False,
+        description="Enable debug mode to return detailed execution information including system prompts, RAG results, and timing data. (Optional)"
+    )
 
     class Config:
         json_schema_extra = {

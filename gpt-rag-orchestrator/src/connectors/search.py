@@ -2,10 +2,28 @@ import aiohttp
 import logging
 import json
 import time
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Callable
 from pydantic import BaseModel
 
 from dependencies import get_config
+
+
+# Debug callback type for RAG results
+RAGDebugCallback = Callable[[str, List[Dict], str, float], None]
+
+# Global debug callback (set by strategy when debug mode is enabled)
+_rag_debug_callback: Optional[RAGDebugCallback] = None
+
+
+def set_rag_debug_callback(callback: Optional[RAGDebugCallback]) -> None:
+    """Set the debug callback for RAG results"""
+    global _rag_debug_callback
+    _rag_debug_callback = callback
+
+
+def get_rag_debug_callback() -> Optional[RAGDebugCallback]:
+    """Get the current debug callback"""
+    return _rag_debug_callback
 
 
 class SearchResult(BaseModel):
@@ -149,6 +167,8 @@ class SearchClient:
         :return: Search results as a JSON string containing a list of documents with title, link and content.
         """
         
+        search_start_time = time.time()
+        
         logging.info(f"[Retrieval] AI Search index: {self.index_name}")
         logging.info(f"[Retrieval] Search approach: {self.search_approach}")
         logging.info(f"[Retrieval] Executing search for query: {query}")
@@ -167,7 +187,8 @@ class SearchClient:
                 start_time = time.time()
                 logging.info(f"[Retrieval] Generating embeddings for query")
                 embeddings_query = await self.aoai_client.get_embeddings(query)
-                logging.info(f"[Retrieval] Embeddings generated in {round(time.time() - start_time, 2)} seconds")
+                embedding_duration = round(time.time() - start_time, 2)
+                logging.info(f"[Retrieval] Embeddings generated in {embedding_duration} seconds")
                 
                 if self.search_approach == "vector":
                     search_body["vectorQueries"] = [{
@@ -196,10 +217,12 @@ class SearchClient:
             
             # Process search results
             results_list = []
+            raw_results = []  # Keep raw results for debug callback
             for result in search_results.get('value', []):
                 title = result.get('title', 'reference') or 'reference'
                 link = result.get('filepath') or result.get('url', '') or ''
                 content = result.get('content', '')
+                score = result.get('@search.score', result.get('score'))
                 
                 # Debug log each document with formatted output (remove line breaks)
                 content_preview = content[:200] if len(content) > 200 else content
@@ -212,8 +235,26 @@ class SearchClient:
                     content=content
                 )
                 results_list.append(search_result.model_dump())
+                
+                # Keep raw result with score for debug
+                raw_results.append({
+                    "title": title,
+                    "link": link,
+                    "content": content,
+                    "score": score
+                })
             
-            logging.info(f"[Retrieval] Found {len(results_list)} results from Azure AI Search")
+            search_duration = time.time() - search_start_time
+            logging.info(f"[Retrieval] Found {len(results_list)} results from Azure AI Search in {round(search_duration, 2)}s")
+            
+            # Call debug callback if set
+            debug_callback = get_rag_debug_callback()
+            if debug_callback:
+                try:
+                    debug_callback(query, raw_results, self.search_approach, search_duration)
+                except Exception as e:
+                    logging.warning(f"[Retrieval] Debug callback failed: {e}")
+            
             return json.dumps({"results": results_list, "query": query})
             
         except Exception as e:

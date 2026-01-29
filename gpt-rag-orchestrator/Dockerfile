@@ -1,8 +1,9 @@
 # Use the official slim Python 3.12 image
 FROM mcr.microsoft.com/devcontainers/python:dev-3.12
 
-# 1. Install prerequisites for HTTPS, GPG and lsb_release
-RUN apt-get update \
+# 1. Remove yarn repository (causes GPG issues) and install prerequisites
+RUN rm -f /etc/apt/sources.list.d/yarn.list 2>/dev/null || true \
+    && apt-get update \
     && apt-get install -y \
          curl \
          apt-transport-https \

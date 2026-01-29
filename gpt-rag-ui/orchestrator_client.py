@@ -38,7 +38,7 @@ def get_managed_identity_token():
     return credential.get_token("https://management.azure.com/.default").token
 
 
-async def call_orchestrator_stream(conversation_id: str, question: str, auth_info: dict, question_id: str | None = None):    
+async def call_orchestrator_stream(conversation_id: str, question: str, auth_info: dict, question_id: str | None = None, debug_mode: bool = False):    
     # Read Dapr settings and target app ID
     orchestrator_app_id = "orchestrator"
     base_url = _get_orchestrator_base_url()
@@ -76,7 +76,8 @@ async def call_orchestrator_stream(conversation_id: str, question: str, auth_inf
         "client_principal_id": auth_info.get('client_principal_id', 'no-auth'),
         "client_principal_name": auth_info.get('client_principal_name', 'anonymous'),
         "client_group_names": auth_info.get('client_group_names', []),
-        "access_token": auth_info.get('access_token')
+        "access_token": auth_info.get('access_token'),
+        "debug_mode": debug_mode  # Pass debug mode flag to orchestrator
     }
 
     if question_id:

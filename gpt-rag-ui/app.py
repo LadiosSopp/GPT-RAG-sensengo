@@ -17,7 +17,7 @@ from orchestrator_client import call_orchestrator_stream
 from feedback import register_feedback_handlers,create_feedback_actions
 from dependencies import get_config
 from connectors import BlobClient
-from debug_store import get_debug_data, set_debug_data
+from debug_store import get_debug_data, set_debug_data, extract_debug_events_from_text, format_debug_for_display
 
 from constants import APPLICATION_INSIGHTS_CONNECTION_STRING, APP_NAME, UUID_REGEX, REFERENCE_REGEX, TERMINATE_TOKEN
 from telemetry import Telemetry
@@ -40,19 +40,131 @@ async def debug_data_api():
     """API endpoint to return debug data as JSON"""
     data = get_debug_data()
     if data:
-        return JSONResponse(content=data)
+        # Map orchestrator debug events to frontend expected format
+        response = {
+            "timing": data.get("timing", {}),
+            "prompting": data.get("prompting", {}),
+            "timestamp": data.get("timestamp", 0)
+        }
+        
+        # Extract and map detailed timing from debug_events
+        debug_events = data.get("debug_events", {})
+        if debug_events:
+            timings_list = debug_events.get("timings", [])
+            # Map operation names to frontend expected keys
+            timing_map = {}
+            for t in timings_list:
+                op = t.get("operation", "")
+                duration = t.get("duration", 0)
+                # Map orchestrator operation names to frontend keys
+                if op == "thread_management":
+                    timing_map["thread_creation"] = duration
+                elif op == "agent_management":
+                    timing_map["agent_creation"] = duration
+                elif op == "send_message":
+                    timing_map["send_message"] = duration
+                elif op == "agent_response":
+                    timing_map["response_streaming"] = duration
+                elif op == "total_flow":
+                    timing_map["total"] = duration
+                elif op == "consolidate_history":
+                    timing_map["consolidate_history"] = duration
+                elif op == "llm_thinking_1":
+                    timing_map["llm_thinking_1"] = duration
+                elif op == "llm_thinking_2":
+                    timing_map["llm_thinking_2"] = duration
+                elif op == "tool_execution":
+                    timing_map["tool_execution"] = duration
+            
+            # Include RAG/tool timing from tool_calls
+            tool_calls = debug_events.get("tool_calls", [])
+            for tc in tool_calls:
+                name = tc.get("name", "")
+                duration = tc.get("duration", 0)
+                if "search" in name.lower():
+                    timing_map["search_query"] = duration
+                    # Only set tool_execution from tool_calls if not already set from timings
+                    if "tool_execution" not in timing_map:
+                        timing_map["tool_execution"] = duration
+            
+            # Include LLM timing from llm_calls (fallback if not in timings)
+            llm_calls = debug_events.get("llm_calls", [])
+            for i, lc in enumerate(llm_calls):
+                duration = lc.get("duration", 0)
+                if i == 0 and "llm_thinking_1" not in timing_map:
+                    timing_map["llm_thinking_1"] = duration
+                elif i == 1 and "llm_thinking_2" not in timing_map:
+                    timing_map["llm_thinking_2"] = duration
+            
+            # Merge mapped timing with base timing
+            response["timing"].update(timing_map)
+            
+            # Add prompting details
+            system_prompt = debug_events.get("system_prompt")
+            if system_prompt:
+                response["prompting"]["system_prompt"] = system_prompt.get("prompt", "")[:2000]
+                response["prompting"]["template_name"] = system_prompt.get("template_name", "")
+                response["prompting"]["token_estimate"] = system_prompt.get("token_estimate", 0)
+            
+            # Add RAG results
+            rag_results = debug_events.get("rag_results", [])
+            if rag_results:
+                first_rag = rag_results[0]
+                response["prompting"]["search_results"] = {
+                    "count": first_rag.get("result_count", 0),
+                    "query": first_rag.get("query", ""),
+                    "approach": first_rag.get("search_approach", ""),
+                    "duration": first_rag.get("duration", 0),
+                    "preview": "\n---\n".join([
+                        f"[{r.get('title', 'N/A')}] (score: {r.get('score', 'N/A')})\n{r.get('content_preview', r.get('content', '')[:200])}"
+                        for r in first_rag.get("results", [])[:3]
+                    ])
+                }
+            
+            # Add tool calls
+            if tool_calls:
+                response["prompting"]["tool_calls"] = tool_calls
+            
+            # Add model info from LLM calls
+            if llm_calls:
+                response["prompting"]["model"] = llm_calls[0].get("model", "unknown")
+        
+        return JSONResponse(content=response)
     return JSONResponse(content={"error": "No debug data available", "status": "waiting"})
 
 @debug_router.get("/dev")
 async def dev_mode_page():
-    """Enable debug mode and redirect to main app"""
+    """Enable debug mode via cookie and redirect to main app"""
     html = """<!DOCTYPE html>
 <html><head><title>Debug Mode</title>
 <style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}.loader{text-align:center}.spinner{width:50px;height:50px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head><body><div class="loader"><div class="spinner"></div><div>🐛 Enabling Debug Mode...</div></div>
-<script>localStorage.setItem('gptrag_debug','true');setTimeout(()=>location.href='/',500);</script>
+<script>
+document.cookie = 'gptrag_debug=true;path=/;max-age=86400';
+localStorage.setItem('gptrag_debug','true');
+setTimeout(()=>location.href='/',500);
+</script>
 </body></html>"""
-    return HTMLResponse(content=html)
+    response = HTMLResponse(content=html)
+    response.set_cookie(key="gptrag_debug", value="true", max_age=86400)
+    return response
+
+@debug_router.get("/dev/off")
+async def dev_mode_off_page():
+    """Disable debug mode and redirect to main app"""
+    html = """<!DOCTYPE html>
+<html><head><title>Debug Mode Off</title>
+<style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}.loader{text-align:center}</style>
+</head><body><div class="loader"><div>✅ Debug Mode Disabled</div></div>
+<script>
+document.cookie = 'gptrag_debug=;path=/;max-age=0';
+localStorage.removeItem('gptrag_debug');
+setTimeout(()=>location.href='/',500);
+</script>
+</body></html>"""
+    response = HTMLResponse(content=html)
+    response.delete_cookie(key="gptrag_debug")
+    return response
 
 # Insert debug routes at the BEGINNING of the route list (before catch-all)
 # We need to insert them before the catch-all route /{full_path:path}
@@ -62,7 +174,7 @@ chainlit_server_app.include_router(debug_router)
 # This is a hack but necessary because Chainlit's catch-all would otherwise match first
 routes_to_move = []
 for route in chainlit_server_app.routes:
-    if hasattr(route, 'path') and route.path in ['/_debug/data', '/dev']:
+    if hasattr(route, 'path') and route.path in ['/_debug/data', '/dev', '/dev/off']:
         routes_to_move.append(route)
 
 for route in routes_to_move:
@@ -247,13 +359,29 @@ if ENABLE_FEEDBACK:
 # Chainlit event handlers
 @cl.on_chat_start
 async def on_chat_start():
-    pass
-    # app_user = cl.user_session.get("user")
-    # if app_user:
-        # await cl.Message(content=f"Hello {app_user.metadata.get('user_name')}").send()
+    # Default debug mode is ON (can be toggled by /debug command)
+    debug_mode = config.get("DEBUG_MODE_ENABLED", True, bool)
+    cl.user_session.set("debug_mode", debug_mode)
 
 @cl.on_message
 async def handle_message(message: cl.Message):
+    # Handle debug command
+    msg_lower = message.content.strip().lower()
+    if msg_lower == "/debug" or msg_lower == "/debug on":
+        cl.user_session.set("debug_mode", True)
+        await cl.Message(content="""🐛 **Debug Mode 已啟用** - 回應會顯示詳細的執行資訊、時間和 RAG 結果
+
+💡 **重要**: 請按 F5 重新整理頁面，或訪問 `/dev` 來啟用右側的 Debug Panel""").send()
+        return
+    elif msg_lower == "/debug off":
+        cl.user_session.set("debug_mode", False)
+        await cl.Message(content="✅ **Debug Mode 已關閉**").send()
+        return
+    elif msg_lower == "/debug status":
+        debug_mode = cl.user_session.get("debug_mode", False)
+        status = "啟用 🟢" if debug_mode else "關閉 🔴"
+        await cl.Message(content=f"🐛 **Debug Mode 狀態**: {status}").send()
+        return
     
     with tracer.start_as_current_span('handle_message', kind=SpanKind.SERVER) as span:
 
@@ -313,7 +441,11 @@ async def handle_message(message: cl.Message):
             message.id,
             _trim_for_log(message.content),
         )
-        generator = call_orchestrator_stream(conversation_id, message.content, auth_info, message.id)
+        
+        # Check if debug mode is enabled
+        debug_mode = cl.user_session.get("debug_mode", False)
+        
+        generator = call_orchestrator_stream(conversation_id, message.content, auth_info, message.id, debug_mode=debug_mode)
 
         chunk_count = 0
         first_content_seen = False
@@ -321,6 +453,9 @@ async def handle_message(message: cl.Message):
         # Timing tracking for debug mode
         request_start_time = time.time()
         first_chunk_time = None
+        
+        # Debug events collected from stream
+        collected_debug_events = None
 
         try:
             async for chunk in generator:
@@ -335,6 +470,18 @@ async def handle_message(message: cl.Message):
                     conversation_id = extracted_id
 
                 cleaned_chunk = cleaned_chunk.replace("\\n", "\n")
+                
+                # Extract debug events from chunk (if present)
+                cleaned_chunk, debug_events = extract_debug_events_from_text(cleaned_chunk)
+                if debug_events:
+                    collected_debug_events = debug_events
+                    logger.info("[Debug] Debug events extracted from stream: summary=%s, events_count=%s",
+                               'summary' in debug_events, len(debug_events.get('events', [])))
+                    if 'summary' in debug_events:
+                        summary_timings = debug_events.get('summary', {}).get('timings', [])
+                        logger.info("[Debug] Summary timings count: %d", len(summary_timings))
+                        for t in summary_timings[:5]:  # Log first 5
+                            logger.info("[Debug] Timing: %s = %s", t.get('operation'), t.get('duration_seconds'))
 
                 normalized_preview = cleaned_chunk.strip().lower()
                 if not first_content_seen and normalized_preview:
@@ -435,24 +582,94 @@ async def handle_message(message: cl.Message):
         ttfb = (first_chunk_time - request_start_time) if first_chunk_time else total_time
         streaming_time = (time.time() - first_chunk_time) if first_chunk_time else 0
         
+        # Format debug events if collected
+        formatted_debug = None
+        if collected_debug_events:
+            formatted_debug = format_debug_for_display(collected_debug_events)
+            logger.info("[Debug] Formatted debug data: summary=%s, timings=%d, llm_calls=%d, rag=%d",
+                       bool(formatted_debug.get('summary')), 
+                       len(formatted_debug.get('timings', [])),
+                       len(formatted_debug.get('llm_calls', [])),
+                       len(formatted_debug.get('rag_results', [])))
+        
         # Store debug data via API (accessible by debug-panels.js)
-        timing_data = {"ttfb": round(ttfb, 2), "streaming": round(streaming_time, 2), "total": round(total_time, 2), "chunks": chunk_count}
-        prompting_data = {"user_message": message.content[:100], "conversation_id": conversation_id}
+        # Start with basic timing data
+        timing_data = {
+            "ttfb": round(ttfb, 2), 
+            "streaming": round(streaming_time, 2), 
+            "response_streaming": round(streaming_time, 2),
+            "total": round(total_time, 2), 
+            "chunks": chunk_count
+        }
+        
+        # Extract orchestrator timing from debug events
+        if formatted_debug and formatted_debug.get('timings'):
+            logger.info("[Debug] Extracting timings from formatted_debug, count=%d", len(formatted_debug['timings']))
+            for t in formatted_debug['timings']:
+                op = t.get('operation', '')
+                duration = t.get('duration', 0)
+                logger.info("[Debug] Timing entry: op=%s, duration=%s", op, duration)
+                if op and duration:
+                    # Map operation names to timing panel keys
+                    timing_data[op] = round(duration, 2)
+            logger.info("[Debug] Final timing_data keys: %s", list(timing_data.keys()))
+        
+        prompting_data = {"user_message": message.content, "conversation_id": conversation_id}
+        
+        # Extract detailed debug info for prompting panel
+        if formatted_debug:
+            # System prompt
+            if formatted_debug.get('system_prompt'):
+                prompting_data['system_prompt'] = formatted_debug['system_prompt'].get('prompt', '')
+            
+            # RAG search results - include FULL results
+            if formatted_debug.get('rag_results'):
+                rag_results = formatted_debug['rag_results']
+                prompting_data['search_results'] = {
+                    'count': sum(r.get('result_count', 0) for r in rag_results),
+                    'queries': [r.get('query', '') for r in rag_results],
+                    'results': []  # Full results
+                }
+                for rag in rag_results:
+                    for doc in rag.get('results', []):
+                        prompting_data['search_results']['results'].append({
+                            'title': doc.get('title', 'Untitled'),
+                            'link': doc.get('link', ''),
+                            'content': doc.get('content_preview', ''),  # Full content preview
+                            'score': doc.get('score')
+                        })
+            
+            # Tool calls
+            if formatted_debug.get('tool_calls'):
+                prompting_data['tool_calls'] = formatted_debug['tool_calls']
+            
+            # LLM calls
+            if formatted_debug.get('llm_calls'):
+                prompting_data['llm_calls'] = formatted_debug['llm_calls']
         
         try:
-            set_debug_data(conversation_id, timing_data, prompting_data)
+            set_debug_data(conversation_id, timing_data, prompting_data, formatted_debug)
             logger.debug("Debug data stored for conversation %s", conversation_id)
         except Exception as e:
             logger.debug("Failed to store debug data: %s", e)
         
-        response_msg.content = final_text
+        # Also clean debug events from final_text (in case they weren't removed during streaming)
+        final_text_cleaned, _ = extract_debug_events_from_text(final_text)
+        
+        response_msg.content = final_text_cleaned
         await response_msg.update()
+        
+        # Debug panel is now handled by JavaScript (debug-panels.js)
+        # No need for Python-based display_debug_panel
 
         logger.info(
             "Response delivered: conversation=%s question_id=%s chunks=%s characters=%s preview='%s'",
             conversation_id,
             message.id,
             chunk_count,
-            len(final_text),
-            _trim_for_log(final_text),
+            len(final_text_cleaned),
+            _trim_for_log(final_text_cleaned),
         )
+
+
+# Note: display_debug_panel removed - debug info is now displayed by JavaScript (debug-panels.js)

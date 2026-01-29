@@ -28,7 +28,7 @@ class Orchestrator:
         self.database_container = cfg.get("CONVERSATIONS_DATABASE_CONTAINER", "conversations")
         
     @classmethod
-    async def create(cls, conversation_id: str = None, user_context: Dict = {}):
+    async def create(cls, conversation_id: str = None, user_context: Dict = {}, debug_mode: bool = False):
         instance = cls(conversation_id=conversation_id)
 
         # app configuration
@@ -41,6 +41,10 @@ class Orchestrator:
             raise EnvironmentError("AGENT_STRATEGY must be set")
 
         instance.agentic_strategy.user_context = user_context
+        
+        # Pass debug_mode to strategy
+        if hasattr(instance.agentic_strategy, 'debug_enabled'):
+            instance.agentic_strategy.debug_enabled = debug_mode
 
         return instance
 

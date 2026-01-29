@@ -45,6 +45,49 @@
             createDebugPanels();
             hookIntoStreaming();
         }
+        
+        // Also watch for /debug command in chat messages
+        watchForDebugCommand();
+    }
+    
+    // Watch for /debug command in chat and auto-enable debug mode
+    function watchForDebugCommand() {
+        // Use MutationObserver to watch for new messages
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        const text = node.textContent || '';
+                        // Check if message contains debug mode enabled indicator
+                        if (text.includes('Debug Mode 已啟用') || text.includes('Debug Mode Enabled')) {
+                            console.log('[Debug] Detected /debug command - enabling debug panels');
+                            localStorage.setItem('gptrag_debug', 'true');
+                            if (!debugEnabled) {
+                                debugEnabled = true;
+                                createDebugPanels();
+                                hookIntoStreaming();
+                            }
+                        } else if (text.includes('Debug Mode 已關閉') || text.includes('Debug Mode Disabled')) {
+                            console.log('[Debug] Detected /debug off command - disabling debug panels');
+                            localStorage.removeItem('gptrag_debug');
+                            debugEnabled = false;
+                            const container = document.getElementById('debug-panels-container');
+                            if (container) container.remove();
+                            adjustMainContent(false);
+                        }
+                    }
+                });
+            });
+        });
+        
+        // Start observing when body is available
+        if (document.body) {
+            observer.observe(document.body, { childList: true, subtree: true });
+        } else {
+            document.addEventListener('DOMContentLoaded', () => {
+                observer.observe(document.body, { childList: true, subtree: true });
+            });
+        }
     }
     
     // Allow disabling debug mode
@@ -53,10 +96,31 @@
         location.reload();
     };
 
+    // Adjust main content area for debug sidebar
+    function adjustMainContent(enable) {
+        // Find Chainlit's main content area
+        const root = document.getElementById('root');
+        if (!root) return;
+        
+        if (enable) {
+            // Shrink main content to make room for debug sidebar
+            root.style.width = '55%';
+            root.style.marginRight = '45%';
+            root.style.transition = 'all 0.3s ease';
+        } else {
+            // Restore full width
+            root.style.width = '';
+            root.style.marginRight = '';
+        }
+    }
+
     // Create debug panel UI
     function createDebugPanels() {
         // Check if panels already exist
         if (document.getElementById('debug-panels-container')) return;
+
+        // Adjust main content area
+        adjustMainContent(true);
 
         const container = document.createElement('div');
         container.id = 'debug-panels-container';
@@ -64,11 +128,48 @@
             <style>
                 #debug-panels-container {
                     position: fixed;
-                    top: 60px;
-                    right: 10px;
+                    top: 0;
+                    right: 0;
+                    width: 45%;
+                    height: 100vh;
                     z-index: 10000;
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                     font-size: 12px;
+                    background: #1a1a2e;
+                    border-left: 1px solid #333;
+                    overflow-y: auto;
+                    padding: 10px;
+                    box-sizing: border-box;
+                }
+                
+                .debug-sidebar-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 10px 5px;
+                    margin-bottom: 10px;
+                    border-bottom: 1px solid #333;
+                }
+                
+                .debug-sidebar-title {
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #fff;
+                }
+                
+                .debug-close-btn {
+                    background: rgba(255,255,255,0.1);
+                    border: none;
+                    color: #aaa;
+                    padding: 5px 10px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                }
+                
+                .debug-close-btn:hover {
+                    background: rgba(255,255,255,0.2);
+                    color: #fff;
                 }
                 
                 .debug-panel {
@@ -78,12 +179,6 @@
                     margin-bottom: 10px;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
                     overflow: hidden;
-                    min-width: 300px;
-                    max-width: 450px;
-                }
-                
-                .debug-panel.right-panel {
-                    max-width: 450px;
                 }
                 
                 .debug-panel-header {
@@ -116,7 +211,7 @@
                 
                 .debug-panel-content {
                     padding: 12px 15px;
-                    max-height: 400px;
+                    max-height: 50vh;
                     overflow-y: auto;
                 }
                 
@@ -186,26 +281,12 @@
                     max-height: 150px;
                     overflow-y: auto;
                 }
-                
-                .debug-badge {
-                    position: fixed;
-                    bottom: 20px;
-                    right: 20px;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    padding: 8px 16px;
-                    border-radius: 20px;
-                    font-size: 12px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    z-index: 10001;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                }
-                
-                .debug-badge:hover {
-                    transform: scale(1.05);
-                }
             </style>
+            
+            <div class="debug-sidebar-header">
+                <span class="debug-sidebar-title">🐛 Debug Panel</span>
+                <button class="debug-close-btn" onclick="window.closeDebugPanels()">關閉 ✕</button>
+            </div>
             
             <div class="debug-panel" id="timing-panel">
                 <div class="debug-panel-header" onclick="window.toggleDebugPanel('timing-panel')">
@@ -220,7 +301,7 @@
                 </div>
             </div>
             
-            <div class="debug-panel right-panel" id="prompting-panel">
+            <div class="debug-panel" id="prompting-panel">
                 <div class="debug-panel-header" onclick="window.toggleDebugPanel('prompting-panel')">
                     <span class="debug-panel-title">📝 Prompting Details</span>
                     <span class="debug-panel-toggle">▼</span>
@@ -232,14 +313,19 @@
                     </div>
                 </div>
             </div>
-            
-            <div class="debug-badge" onclick="window.toggleAllDebugPanels()">
-                🐛 Debug Mode
-            </div>
         `;
         
         document.body.appendChild(container);
     }
+    
+    // Close debug panels and restore layout
+    window.closeDebugPanels = function() {
+        localStorage.removeItem('gptrag_debug');
+        debugEnabled = false;
+        const container = document.getElementById('debug-panels-container');
+        if (container) container.remove();
+        adjustMainContent(false);
+    };
 
     // Toggle panel collapse state
     window.toggleDebugPanel = function(panelId) {
@@ -271,24 +357,54 @@
 
         timingData = { ...timingData, ...data };
         
+        // All possible timing stages from orchestrator
+        // Note: agent_response and response_streaming measure the same thing (streaming duration)
+        // agent_response = measured in orchestrator, response_streaming = measured in UI
+        // We show response_streaming as it's more accurate (includes network)
         const stages = [
             { key: 'request_start', icon: '🚀', label: 'Request Started' },
-            { key: 'thread_creation', icon: '🧵', label: 'Thread Creation' },
+            { key: 'thread_creation', icon: '🧵', label: 'Thread Management' },
+            { key: 'agent_management', icon: '🤖', label: 'Agent Management' },
+            { key: 'send_message', icon: '📨', label: 'Send Message' },
             { key: 'llm_thinking_1', icon: '🤔', label: 'LLM Thinking #1' },
             { key: 'tool_execution', icon: '🔧', label: 'Tool Execution' },
             { key: 'search_query', icon: '🔍', label: 'AI Search' },
             { key: 'llm_thinking_2', icon: '💭', label: 'LLM Thinking #2' },
-            { key: 'response_streaming', icon: '📤', label: 'Response Streaming' },
-            { key: 'total', icon: '⏱️', label: 'Total Time', isTotal: true }
+            { key: 'response_streaming', icon: '📡', label: 'Response Streaming', fallbackKey: 'agent_response' },
+            { key: 'consolidate_history', icon: '📚', label: 'Consolidate History' },
+            { key: 'cleanup_agent', icon: '🧹', label: 'Cleanup Agent' },
+            { key: 'total_flow', icon: '⏱️', label: 'Orchestrator Total', isTotal: true },
+            { key: 'total', icon: '🏁', label: 'End-to-End Total', isTotal: true, isGrandTotal: true }
         ];
 
         let html = '';
+        let summedTime = 0;
+        
         stages.forEach(stage => {
-            const value = timingData[stage.key];
-            const displayValue = value !== undefined ? `${value.toFixed(2)}s` : '-';
-            const valueClass = value !== undefined ? 'timing-value' : 'timing-value pending';
+            // Use fallback key if primary key is not available
+            let value = timingData[stage.key];
+            if ((value === undefined || value === null) && stage.fallbackKey) {
+                value = timingData[stage.fallbackKey];
+            }
+            // Skip stages with no data (don't show '-')
+            if (value === undefined || value === null) return;
             
-            if (stage.isTotal) {
+            const displayValue = `${value.toFixed(2)}s`;
+            const valueClass = 'timing-value';
+            
+            // Sum up component times (exclude totals)
+            if (!stage.isTotal && value) {
+                summedTime += value;
+            }
+            
+            if (stage.isGrandTotal) {
+                html += `
+                    <div class="timing-row timing-total" style="background: rgba(96, 165, 250, 0.2); margin-top: 8px; padding: 8px; border-radius: 4px;">
+                        <span class="timing-label"><span class="timing-icon">${stage.icon}</span> ${stage.label}</span>
+                        <span class="${valueClass}" style="font-size: 16px;">${displayValue}</span>
+                    </div>
+                `;
+            } else if (stage.isTotal) {
                 html += `
                     <div class="timing-row timing-total">
                         <span class="timing-label"><span class="timing-icon">${stage.icon}</span> ${stage.label}</span>
@@ -304,6 +420,16 @@
                 `;
             }
         });
+        
+        // Show summed components time vs total (to see overhead)
+        if (summedTime > 0 && timingData.total) {
+            const overhead = timingData.total - summedTime;
+            html += `
+                <div class="timing-row" style="font-size: 10px; color: #888; margin-top: 8px;">
+                    <span>Components sum: ${summedTime.toFixed(2)}s | Overhead: ${overhead.toFixed(2)}s</span>
+                </div>
+            `;
+        }
 
         content.innerHTML = html;
     };
@@ -322,7 +448,7 @@
         if (promptingData.user_message) {
             html += `
                 <div class="prompting-section">
-                    <div class="prompting-title">User Message</div>
+                    <div class="prompting-title">📝 User Message</div>
                     <div class="prompting-content">${escapeHtml(promptingData.user_message)}</div>
                 </div>
             `;
@@ -331,8 +457,10 @@
         if (promptingData.system_prompt) {
             html += `
                 <div class="prompting-section">
-                    <div class="prompting-title">System Prompt</div>
-                    <div class="prompting-content">${escapeHtml(truncateText(promptingData.system_prompt, 500))}</div>
+                    <div class="prompting-title">⚙️ System Prompt</div>
+                    <div class="prompting-content" style="max-height: 300px; overflow-y: auto;">
+                        <pre style="white-space: pre-wrap; word-wrap: break-word; font-size: 11px;">${escapeHtml(promptingData.system_prompt)}</pre>
+                    </div>
                 </div>
             `;
         }
@@ -340,17 +468,66 @@
         if (promptingData.tool_calls && promptingData.tool_calls.length > 0) {
             html += `
                 <div class="prompting-section">
-                    <div class="prompting-title">Tool Calls</div>
-                    <div class="prompting-content">${escapeHtml(JSON.stringify(promptingData.tool_calls, null, 2))}</div>
+                    <div class="prompting-title">🔧 Tool Calls (${promptingData.tool_calls.length})</div>
+                    <div class="prompting-content">
+                        <pre style="white-space: pre-wrap; word-wrap: break-word; font-size: 11px;">${escapeHtml(JSON.stringify(promptingData.tool_calls, null, 2))}</pre>
+                    </div>
                 </div>
             `;
         }
         
-        if (promptingData.search_results) {
+        // Full Search Results
+        if (promptingData.search_results && promptingData.search_results.results) {
+            const results = promptingData.search_results.results;
+            const count = promptingData.search_results.count || results.length;
+            const queries = promptingData.search_results.queries || [];
+            
             html += `
                 <div class="prompting-section">
-                    <div class="prompting-title">Search Results (${promptingData.search_results.count || 0} docs)</div>
-                    <div class="prompting-content">${escapeHtml(truncateText(promptingData.search_results.preview || 'N/A', 300))}</div>
+                    <div class="prompting-title">🔍 Search Results (${count} documents)</div>
+                    ${queries.length > 0 ? `<div style="font-size: 11px; color: #888; margin-bottom: 8px;">Query: ${escapeHtml(queries.join(', '))}</div>` : ''}
+                    <div class="prompting-content" style="max-height: 500px; overflow-y: auto;">
+            `;
+            
+            results.forEach((doc, idx) => {
+                const score = doc.score ? ` (Score: ${doc.score.toFixed(4)})` : '';
+                html += `
+                    <div style="border: 1px solid #444; border-radius: 4px; padding: 8px; margin-bottom: 8px; background: #1a1a2e;">
+                        <div style="font-weight: bold; color: #00d4ff; margin-bottom: 4px;">
+                            ${idx + 1}. ${escapeHtml(doc.title || 'Untitled')}${score}
+                        </div>
+                        ${doc.link ? `<div style="font-size: 10px; color: #888; margin-bottom: 4px;"><a href="${escapeHtml(doc.link)}" target="_blank" style="color: #4da6ff;">${escapeHtml(doc.link)}</a></div>` : ''}
+                        <div style="font-size: 11px; white-space: pre-wrap; word-wrap: break-word; color: #ccc;">
+                            ${escapeHtml(doc.content || 'No content')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+
+        if (promptingData.llm_calls && promptingData.llm_calls.length > 0) {
+            html += `
+                <div class="prompting-section">
+                    <div class="prompting-title">🤖 LLM Calls (${promptingData.llm_calls.length})</div>
+                    <div class="prompting-content">
+            `;
+            promptingData.llm_calls.forEach((call, idx) => {
+                html += `
+                    <div style="margin-bottom: 8px; padding: 4px; border-left: 2px solid #4da6ff;">
+                        <strong>Call ${idx + 1}:</strong> ${escapeHtml(call.model || 'unknown')} | 
+                        Input: ${call.input_tokens || 0} tokens | 
+                        Output: ${call.output_tokens || 0} tokens | 
+                        Duration: ${(call.duration || 0).toFixed(2)}s
+                    </div>
+                `;
+            });
+            html += `
+                    </div>
                 </div>
             `;
         }
@@ -421,9 +598,22 @@
                         console.log('[Debug] Received debug data:', data);
                         
                         if (data.timing) {
+                            // Pass ALL timing data from backend directly
+                            // The backend already has proper keys, just pass them through
                             window.updateTimingPanel({
-                                llm_thinking_1: data.timing.ttfb,
-                                response_streaming: data.timing.streaming,
+                                // Map some alternate names for compatibility
+                                thread_creation: data.timing.thread_management || data.timing.thread_creation,
+                                agent_management: data.timing.agent_management,
+                                send_message: data.timing.send_message,
+                                llm_thinking_1: data.timing.llm_thinking_1,
+                                tool_execution: data.timing.tool_execution,
+                                search_query: data.timing.search_query || data.timing.ai_search,
+                                llm_thinking_2: data.timing.llm_thinking_2,
+                                agent_response: data.timing.agent_response,
+                                consolidate_history: data.timing.consolidate_history,
+                                cleanup_agent: data.timing.cleanup_agent,
+                                response_streaming: data.timing.response_streaming || data.timing.streaming,
+                                total_flow: data.timing.total_flow,
                                 total: data.timing.total
                             });
                         }

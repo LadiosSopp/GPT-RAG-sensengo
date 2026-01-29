@@ -128,10 +128,14 @@ async def orchestrator_endpoint(
         raise HTTPException(status_code=400, detail="No 'ask' or 'question' field in request body")
 
     user_context = body.user_context or {}
+    debug_mode = getattr(body, "debug_mode", False) or False
+    
+    logging.info(f"[Orchestrator API] debug_mode={debug_mode}, conversation_id={body.conversation_id}")
 
     orchestrator = await Orchestrator.create(
         conversation_id=body.conversation_id,
-        user_context=user_context
+        user_context=user_context,
+        debug_mode=debug_mode
     )
 
     async def sse_event_generator():
