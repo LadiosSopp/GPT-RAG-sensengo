@@ -13,9 +13,8 @@
 2. [系統架構](#2-系統架構)
 3. [部署指南](#3-部署指南)
 4. [開發指南](#4-開發指南)
-5. [維運指南](#5-維運指南)
-6. [疑難排解](#6-疑難排解)
-7. [附錄](#7-附錄)
+5. [疑難排解](#5-疑難排解)
+6. [附錄](#6-附錄)
 
 ---
 
@@ -49,19 +48,6 @@
 | **AI 擴展** | Semantic Kernel 1.34+ (含 MCP 支援) |
 | **容器運行** | Azure Container Apps (Consumption) |
 | **IaC 工具** | Bicep + Azure Developer CLI (azd 1.22+) |
-
-### 1.4 專案 Repository 結構
-
-```text
-sensengo/
-├── GPT-RAG/                    # 主部署專案 (IaC)
-├── gpt-rag-ui/                 # 前端服務
-├── gpt-rag-orchestrator/       # 核心 RAG 編排引擎
-├── gpt-rag-ingestion/          # 文件處理與索引服務
-├── gpt-rag-mcp/                # Model Context Protocol 擴充 (選用)
-├── doc/                        # 專案文件
-└── scripts/                    # 輔助腳本
-```
 
 ---
 
@@ -165,6 +151,144 @@ sensengo/
 9. 對話儲存到 Cosmos DB
 ```
 
+**API Flow**:
+
+```
+┌─────────────┐      POST /orchestrator (SSE)      ┌───────────────┐
+│  Frontend   │ ──────────────────────────────────► │  Orchestrator │
+│ (Chainlit)  │ ◄────────────────────────────────── │   (FastAPI)   │
+└─────────────┘      SSE Stream (text/event-stream) └───────────────┘
+                                                            │
+                     ┌──────────────────────────────────────┼──────────────────┐
+                     │                                      │                  │
+                     ▼                                      ▼                  ▼
+              ┌────────────┐                      ┌──────────────┐    ┌─────────────┐
+              │ Cosmos DB  │                      │ AI Foundry   │    │  AI Search  │
+              │  (History) │                      │ Agent Service│    │   (RAG)     │
+              └────────────┘                      └──────────────┘    └─────────────┘
+```
+
+**查詢處理 Function 呼叫鏈**:
+
+以下描述每個 Function 被誰呼叫、輸入什麼、內部再呼叫誰、輸出什麼：
+
+---
+
+**① `app.handle_message()`** — 使用者訊息進入點
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-ui/app.py` (Chainlit `@cl.on_message` handler) |
+| **呼叫者** | Chainlit 框架 (使用者在聊天介面送出訊息時自動觸發) |
+| **輸入** | `cl.Message` 物件，包含 `message.content` (使用者問題)、`message.id` |
+| **內部處理** | 1. 取得 `conversation_id`、`auth_info`、`debug_mode`、`search_index` 等 session 參數<br>2. 呼叫 **② `call_orchestrator_stream()`** |
+| **輸出** | SSE 串流回應，逐 chunk 透過 `response_msg.stream_token()` 顯示在 Chainlit UI |
+
+---
+
+**② `call_orchestrator_stream()`** — Frontend → Orchestrator HTTP Client
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-ui/orchestrator_client.py` |
+| **呼叫者** | `app.handle_message()` |
+| **輸入** | `conversation_id`, `question` (str), `auth_info` (dict), `question_id`, `debug_mode`, `search_index` |
+| **內部處理** | 1. 讀取 `ORCHESTRATOR_BASE_URL` 或組合 Dapr sidecar URL<br>2. 組裝 HTTP headers (`X-API-KEY` / `dapr-api-token`)<br>3. 組裝 JSON payload: `{ask, question, conversation_id, client_principal_id, client_principal_name, debug_mode, search_index, ...}`<br>4. 使用 `httpx.AsyncClient.stream("POST", url, json=payload)` 發送請求<br>5. 呼叫 **③ `POST /orchestrator`** |
+| **輸出** | `AsyncIterator[str]` — SSE 文字串流 (每個 chunk yield 回給呼叫者) |
+
+---
+
+**③ `orchestrator_endpoint()`** — FastAPI Endpoint
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-orchestrator/src/main.py` |
+| **呼叫者** | `call_orchestrator_stream()` 透過 HTTP POST |
+| **輸入** | `OrchestratorRequest` (Pydantic model，定義在 `schemas.py`)：<br>- `ask` (str, 必填) — 使用者問題<br>- `conversation_id` (str, 選填) — 對話 ID<br>- `debug_mode` (bool, 選填) — 啟用 debug<br>- `search_index` (str, 選填) — 指定 AI Search 索引<br>- `type` (str, 選填) — `"feedback"` 則走回饋路徑<br>- `question_id`, `client_principal_id`, `client_principal_name`, `client_group_names`, `access_token`, `user_context` 等 |
+| **內部處理** | 1. 驗證認證 (`validate_auth` dependency, 檢查 `X-API-KEY` 或 `dapr-api-token`)<br>2. 若 `type == "feedback"` → 呼叫 `orchestrator.save_feedback()` 後直接回傳<br>3. 否則呼叫 **④ `Orchestrator.create()`** 建立實例<br>4. 呼叫 **⑤ `orchestrator.stream_response(ask)`** 取得回應串流<br>5. 包裝為 `StreamingResponse(media_type="text/event-stream")` |
+| **輸出** | `StreamingResponse` — SSE 串流，包含 `conversation_id` + 回應文字 + debug events |
+
+---
+
+**④ `Orchestrator.create()`** — 建立 Orchestrator 實例
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-orchestrator/src/orchestration/orchestrator.py` |
+| **呼叫者** | `orchestrator_endpoint()` |
+| **輸入** | `conversation_id`, `user_context` (dict), `debug_mode` (bool), `search_index` (str) |
+| **內部處理** | 1. 初始化 `CosmosDBClient` (對話歷史存取)<br>2. 從 App Configuration 讀取 `AGENT_STRATEGY` (預設 `"single_agent_rag"`)<br>3. 呼叫 `AgentStrategyFactory.get_strategy(name)` → 得到 Strategy 實例<br>4. 將 `debug_mode`、`search_index` 設定到 Strategy 上 |
+| **輸出** | `Orchestrator` 實例 (含已初始化的 `agentic_strategy`) |
+
+**`AgentStrategyFactory.get_strategy()`** 對照表 (定義在 `strategies/agent_strategy_factory.py`)：
+
+| Key | 對應 Class | 檔案 |
+|-----|-----------|------|
+| `single_agent_rag` | `SingleAgentRAGStrategyV1` | `strategies/single_agent_rag_strategy_v1.py` |
+| `mcp` | `McpStrategy` | `strategies/mcp_strategy.py` |
+| `nl2sql` | `NL2SQLStrategy` | `strategies/nl2sql_strategy.py` |
+
+---
+
+**⑤ `Orchestrator.stream_response(ask)`** — 核心協調流程
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-orchestrator/src/orchestration/orchestrator.py` |
+| **呼叫者** | `orchestrator_endpoint()` (在 SSE generator 中) |
+| **輸入** | `ask` (str 使用者問題), `question_id` (str, 選填) |
+| **內部處理** | 1. 從 Cosmos DB 載入或建立 conversation document<br>2. 記錄 question_id 到 conversation<br>3. 將 conversation 傳給 strategy<br>4. 呼叫 **⑥ `strategy.initiate_agent_flow(ask)`** 取得回應串流<br>5. 完成後更新 conversation document 至 Cosmos DB |
+| **輸出** | `AsyncIterator[str]` — 先 yield `{conversation_id} `，再 yield 所有 strategy 回應 chunk |
+
+---
+
+**⑥ `SingleAgentRAGStrategyV1.initiate_agent_flow(ask)`** — Agent 執行流程
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-orchestrator/src/strategies/single_agent_rag_strategy_v1.py` |
+| **呼叫者** | `Orchestrator.stream_response()` |
+| **輸入** | `user_message` (str 使用者問題) |
+| **內部處理 (依序)** | **Step 1**: `_get_or_create_thread()` — 建立或取回 AI Foundry Agent Thread<br>**Step 2**: `_get_or_create_agent()` — 建立 Agent (含 system prompt, tools 定義)<br>**Step 3**: `_send_user_message()` — 將 user_message 送入 Thread<br>**Step 4**: `_stream_agent_response()` → 呼叫 **⑦ Agent Run Stream**<br>**Step 5**: `_consolidate_conversation_history()` — 從 Thread 取回完整對話歷史<br>**Step 6**: `_cleanup_agent()` — 刪除暫時 Agent |
+| **內部 Tools** | Agent 初始化時註冊的 FunctionTools：<br>- **⑧ `SearchClient.search_knowledge_base(query)`** — RAG 知識庫搜尋<br>- **⑨ `CallTranscriptClient.query_call_transcripts(...)`** — 通話記錄查詢 (若啟用)<br>- `BingGroundingTool` — Bing 搜尋 (若啟用) |
+| **輸出** | `AsyncIterator[str]` — Agent 回應文字 chunk + debug events (若 debug mode) |
+
+---
+
+**⑦ `_stream_agent_response()`** — Agent Run 串流
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-orchestrator/src/strategies/single_agent_rag_strategy_v1.py` |
+| **呼叫者** | `initiate_agent_flow()` Step 4 |
+| **輸入** | `project_client`, `agent_id`, `thread_id`, `user_message` |
+| **內部處理** | 1. 呼叫 `project_client.agents.runs.stream(thread_id, agent_id)` 啟動 Agent Run<br>2. LLM 第一次思考 → 決定需要呼叫哪些 Tools<br>3. Auto-execute registered Tools (**⑧** 或 **⑨**) — SDK 自動執行<br>4. LLM 第二次思考 → 基於 Tool 結果生成最終回應<br>5. 處理 `thread.message.delta` 事件，逐 chunk yield 回應文字 |
+| **輸出** | `AsyncIterator[str]` — 回應文字 chunk (含引用處理) |
+
+---
+
+**⑧ `SearchClient.search_knowledge_base(query)`** — RAG 知識庫搜尋
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-orchestrator/src/connectors/search.py` |
+| **呼叫者** | AI Foundry Agent SDK auto-execute (當 Agent 決定需要搜尋知識庫時) |
+| **輸入** | `query` (str) — Agent 產生的搜尋查詢 |
+| **內部處理** | 1. 依 `search_approach` (hybrid/vector/term) 組裝搜尋 body<br>2. 若 vector/hybrid → 呼叫 Azure OpenAI `get_embeddings(query)` 產生向量<br>3. 呼叫 Azure AI Search REST API 執行搜尋<br>4. 解析結果取 `title`, `content`, `url`, `filepath` |
+| **輸出** | JSON string — `[{title, link, content}, ...]` 搜尋結果列表 |
+
+---
+
+**⑨ `CallTranscriptClient.query_call_transcripts(...)`** — 通話記錄查詢
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-orchestrator/src/connectors/call_transcripts.py` |
+| **呼叫者** | AI Foundry Agent SDK auto-execute (當 Agent 決定需要查詢通話記錄時) |
+| **輸入** | `customer_id` (str, 選填), `status` (str, 選填: "成功"/"失敗"), `call_date` (str, 選填: "YYYY-MM-DD"), `keyword` (str, 選填), `top` (int, 預設 10), `include_full_transcript` (str, 預設 "false") |
+| **內部處理** | 1. 動態組裝 Cosmos DB SQL 查詢 (WHERE 條件)<br>2. 透過 `CosmosClient` 查詢 `call-transcripts` container<br>3. 格式化結果 (截斷 transcript 至前 300 字元，除非 `include_full_transcript=true`) |
+| **輸出** | JSON string — 包含符合條件的通話記錄列表 |
+
 #### 文件 Ingestion 流程
 
 ```
@@ -186,35 +310,160 @@ sensengo/
 7. 寫入 Job 執行記錄
 ```
 
-### 2.6 多租戶架構 (選用)
+**API Flow**:
 
-系統支援多租戶隔離，每個租戶可有獨立的文件容器和搜尋索引：
-
-| 操作 | 配置方式 | 說明 |
-|------|----------|------|
-| **Ingestion (寫入)** | App Configuration 指定 | 批次處理，需預先設定目標 Index |
-| **Search (查詢)** | API 動態切換 | 每次查詢可指定不同 Index |
-
-**資源命名範例**：
-
-| 租戶 | Blob Container | Search Index |
-|------|----------------|--------------|
-| 預設 | `documents` | `ragindex-{token}` |
-| Company A | `documents-company-a` | `ragindex-company-a` |
-
-**Ingestion 配置**：設定 App Configuration (需 `gpt-rag` label)
 ```
-DOCUMENTS_STORAGE_CONTAINER = documents-company-{x}
-SEARCH_RAG_INDEX_NAME = ragindex-company-{x}
+┌─────────────┐     Upload file      ┌──────────────┐
+│    User     │ ────────────────────► │ Blob Storage │
+└─────────────┘                       │ (documents)  │
+                                      └──────────────┘
+                                             │
+                                             │ CRON Trigger
+                                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Ingestion Service                           │
+│  ┌───────────────┐    ┌─────────────┐    ┌──────────────────┐   │
+│  │ Read Document │ ─► │   Chunker   │ ─► │ Generate Embedding│  │
+│  │ (Blob Client) │    │  (Factory)  │    │ (Azure OpenAI)    │  │
+│  └───────────────┘    └─────────────┘    └──────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                                             │
+                                             │ Upload Index
+                                             ▼
+                                      ┌──────────────┐
+                                      │  AI Search   │
+                                      │   (Index)    │
+                                      └──────────────┘
 ```
 
-**Search 動態切換**：Orchestrator API 支援 `search_index` 參數
-```json
-{
-  "ask": "你的問題",
-  "search_index": "ragindex-company-a"
-}
-```
+**Ingestion Function 呼叫鏈** (CRON 排程路徑):
+
+以下描述 Blob 索引排程 (最主要路徑) 中每個 Function 的呼叫關係：
+
+---
+
+**❶ `lifespan()` → Scheduler 啟動** — 應用程式啟動入口
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-ingestion/main.py` |
+| **呼叫者** | FastAPI 框架 (應用程式啟動時自動執行) |
+| **輸入** | 無 (讀取 App Configuration 中的 CRON 設定) |
+| **內部處理** | 1. 驗證 Azure 認證 (Managed Identity / Service Principal / az login)<br>2. 初始化 App Configuration Client<br>3. 讀取各 `CRON_RUN_*` 設定，透過 APScheduler `CronTrigger` 註冊排程<br>4. 啟動時立即執行一次已排程的 Jobs (如 **❷ `run_blob_index()`**) |
+| **輸出** | 無 (排程在背景持續運行) |
+
+**排程 Job 對應表**：
+
+| CRON Key | 呼叫 Function | 對應 Class |
+|----------|--------------|-----------|
+| `CRON_RUN_BLOB_INDEX` | `run_blob_index()` | `BlobStorageDocumentIndexer` |
+| `CRON_RUN_BLOB_PURGE` | `run_blob_purge()` | `BlobStorageDeletedItemsCleaner` |
+| `CRON_RUN_SHAREPOINT_INDEX` | `run_sharepoint_index()` | `SharePointIndexer` |
+| `CRON_RUN_NL2SQL_INDEX` | `run_nl2sql_index()` | `NL2SQLIndexer` |
+
+---
+
+**❷ `run_blob_index()`** — Blob 索引排程觸發點
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-ingestion/main.py` |
+| **呼叫者** | APScheduler CRON 觸發 或 lifespan 啟動時立即呼叫 |
+| **輸入** | 無 |
+| **內部處理** | 實例化 `BlobStorageDocumentIndexer()` 並呼叫 **❸ `.run()`** |
+| **輸出** | 無 (執行結果記錄在 Blob Storage logs) |
+
+---
+
+**❸ `BlobStorageDocumentIndexer.run()`** — Blob 索引核心邏輯
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-ingestion/jobs/blob_storage_indexer.py` |
+| **呼叫者** | `run_blob_index()` |
+| **輸入** | `BlobIndexerConfig` (從 App Configuration 讀取)：`storage_account_name`, `source_container`, `search_endpoint`, `search_index_name`, `max_concurrency` 等 |
+| **內部處理** | 1. `_ensure_clients()` — 建立 `BlobServiceClient` + `AsyncSearchClient`<br>2. `_load_latest_index_state()` — 從 AI Search 載入現有文件的 `last_modified` map<br>3. 列舉 Blob Storage container 中所有文件<br>4. 比對 `blob.last_modified` > `prev_last_modified` → 篩出需重新索引的文件<br>5. 並行呼叫 **❹ `_process_one()`** 處理每個文件 (受 `max_concurrency` 限制)<br>6. 寫入 run summary 至 Blob Storage jobs log container |
+| **輸出** | Summary dict: `{sourceFiles, candidates, indexedItems, success, failed, totalChunksUploaded}` |
+
+---
+
+**❹ `_process_one(blob_name, last_modified, content_type)`** — 單一文件處理
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-ingestion/jobs/blob_storage_indexer.py` |
+| **呼叫者** | `BlobStorageDocumentIndexer.run()` (並行呼叫) |
+| **輸入** | `blob_name` (str), `last_modified` (datetime), `content_type` (str), `run_id` (str) |
+| **內部處理** | 1. 從 Blob Storage 下載文件 bytes (`blob_client.download_blob()`)<br>2. 讀取 blob metadata 中的 `security_ids` (文件權限控制)<br>3. 組裝 `data = {documentUrl, documentContentType, documentBytes, fileName}`<br>4. 呼叫 **❺ `DocumentChunker().chunk_documents(data)`** 進行文件切分<br>5. 將 chunks 轉換為 AI Search documents (`_to_search_doc()`)<br>6. 呼叫 `_replace_parent_docs()` — 刪除舊 chunks 後上傳新 chunks 至 AI Search<br>7. 寫入 per-file log |
+| **輸出** | `{status: "success", chunks: N}` 或 `{status: "error", error: "..."}` |
+
+---
+
+**❺ `DocumentChunker.chunk_documents(data)`** — 文件切分入口
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-ingestion/chunking/document_chunking.py` |
+| **呼叫者** | `_process_one()` 或 `/document-chunking` HTTP endpoint |
+| **輸入** | `data` (dict): `{documentUrl, documentContentType, documentBytes, fileName}` |
+| **內部處理** | 1. 呼叫 **❻ `ChunkerFactory().get_chunker(data)`** 取得對應的 Chunker<br>2. 呼叫 `chunker.get_chunks()` 執行實際切分 |
+| **輸出** | `(chunks, errors, warnings)` — chunks 為 dict list，每個含 `content`, `title`, `url` 等 |
+
+---
+
+**❻ `ChunkerFactory.get_chunker(data)`** — Chunker 工廠
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-ingestion/chunking/chunker_factory.py` |
+| **呼叫者** | `DocumentChunker.chunk_documents()` |
+| **輸入** | `data` (dict) — 包含 `fileName` 用以判斷副檔名 |
+| **內部處理** | 依檔案副檔名選擇 Chunker 實例 |
+| **輸出** | 對應的 Chunker 實例 |
+
+**Chunker 對照表**：
+
+| 副檔名 | Chunker Class | 說明 |
+|--------|--------------|------|
+| `pdf`, `png`, `jpeg`, `jpg`, `bmp`, `tiff` | `DocAnalysisChunker` | 透過 Document Intelligence 分析 |
+| `docx`, `pptx` | `DocAnalysisChunker` | 需 Doc Intelligence 4.0 API |
+| `xlsx`, `xls` | `SpreadsheetChunker` | 試算表切分 |
+| `vtt` | `TranscriptionChunker` | 字幕/逐字稿 |
+| `json` | `JSONChunker` | JSON 資料切分 |
+| `nl2sql` | `NL2SQLChunker` | NL2SQL schema 切分 |
+| 其他 (`txt`, `md` 等) | `LangChainChunker` | LangChain 通用文字切分 |
+
+> 若 `MULTIMODAL=true`，PDF/圖片/DOCX/PPTX 會改用 `MultimodalChunker`。
+
+---
+
+**Ingestion HTTP Endpoints 呼叫鏈** (手動觸發路徑):
+
+除了 CRON 排程，也可透過 HTTP API 手動觸發：
+
+**❼ `POST /document-chunking`** — 手動文件切分
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-ingestion/main.py` |
+| **呼叫者** | Azure AI Search Skillset 或手動 HTTP 呼叫 |
+| **認證** | API Key (`validate_api_key_header`) |
+| **輸入** | JSON Body: `{"values": [{"recordId": "1", "data": {"documentUrl": "https://...", "documentContentType": "application/pdf"}}]}` |
+| **內部處理** | 1. JSON Schema 驗證<br>2. 透過 `BlobClient` 下載文件 bytes<br>3. 呼叫 **❺ `DocumentChunker().chunk_documents(data)`**<br>4. 組裝回應 |
+| **輸出** | JSON: `{"values": [{"recordId": "1", "data": {"chunks": [...]}, "errors": [], "warnings": []}]}` |
+
+---
+
+**❽ `POST /text-embedding`** — 手動向量嵌入
+
+| 項目 | 說明 |
+|------|------|
+| **檔案** | `gpt-rag-ingestion/main.py` |
+| **呼叫者** | Azure AI Search Skillset 或手動 HTTP 呼叫 |
+| **認證** | API Key (`validate_api_key_header`) |
+| **輸入** | JSON Body: `{"values": [{"recordId": "1", "data": {"text": "要嵌入的文字"}}]}` |
+| **內部處理** | 1. 實例化 `AzureOpenAIClient()`<br>2. 對每個 item 呼叫 `aoai_client.get_embeddings(text)` (Azure OpenAI text-embedding-3-large)<br>3. 組裝回應 |
+| **輸出** | JSON: `{"values": [{"recordId": "1", "data": {"embedding": [0.012, -0.034, ...]}, "errors": [], "warnings": []}]}` |
 
 ---
 
@@ -327,25 +576,7 @@ Invoke-RestMethod -Uri "$searchEndpoint/indexes?api-version=2023-11-01" `
 
 ## 4. 開發指南
 
-### 4.1 本地開發環境設定
-
-#### 環境變數
-
-在每個服務目錄建立 `.env` 檔案：
-
-```bash
-# .env
-APP_CONFIG_ENDPOINT=https://appcs-{token}-gprag.azconfig.io
-AZURE_TENANT_ID={tenant-id}
-AZURE_CLIENT_ID={client-id}  # 僅 User Assigned MI 需要
-AZURE_CLIENT_SECRET={client-secret}  # 本地開發用
-```
-
-#### VS Code Launch 設定
-
-各服務已包含 `launch.json`，可直接使用 F5 偵錯。
-
-### 4.2 Debug 面板功能
+### 4.1 Debug 面板功能
 
 Frontend 內建 Debug 面板，可顯示詳細的執行資訊：
 
@@ -363,38 +594,7 @@ Frontend 內建 Debug 面板，可顯示詳細的執行資訊：
 
 **UI 佈局**：左右分割 (問答區 55%、Debug Panel 45%)
 
-### 4.3 關鍵程式碼路徑
-
-#### Frontend (gpt-rag-ui)
-
-| 檔案 | 說明 |
-|------|------|
-| `app.py` | Chainlit 事件處理 (on_chat_start, on_message) |
-| `main.py` | FastAPI 入口，整合 Chainlit |
-| `orchestrator_client.py` | 與 Orchestrator 的 HTTP/SSE 通訊 |
-| `connectors/appconfig.py` | App Configuration 連線 |
-| `public/debug-panels.js` | Debug 面板前端邏輯 |
-
-#### Orchestrator (gpt-rag-orchestrator)
-
-| 檔案 | 說明 |
-|------|------|
-| `src/main.py` | FastAPI 入口 |
-| `src/orchestration/orchestrator.py` | 核心協調邏輯 |
-| `src/strategies/single_agent_rag_strategy_v1.py` | 預設 Agent 策略 |
-| `src/tools/aisearch_tool.py` | AI Search 檢索工具 |
-
-#### Data Ingestion (gpt-rag-ingestion)
-
-| 檔案 | 說明 |
-|------|------|
-| `main.py` | FastAPI + APScheduler 入口 |
-| `jobs/blob_storage_indexer.py` | Blob 索引主邏輯 |
-| `chunking/chunker_factory.py` | Chunker 選擇工廠 |
-| `chunking/chunkers/doc_analysis_chunker.py` | Document Intelligence 切分 |
-| `chunking/chunkers/spreadsheet_chunker.py` | Excel 切分 |
-
-### 4.4 Agent 策略切換
+### 4.2 Agent 策略切換
 
 系統支援三種 Agent 策略：
 
@@ -411,7 +611,7 @@ az appconfig kv set --endpoint "https://appcs-{token}.azconfig.io" `
   --key "AGENT_STRATEGY" --value "single_agent_rag" --label "gpt-rag" --auth-mode login -y
 ```
 
-### 4.5 設定參數清單
+### 4.3 設定參數清單
 
 #### 核心設定
 
@@ -458,95 +658,9 @@ az appconfig kv set --endpoint "https://appcs-{token}.azconfig.io" `
 
 ---
 
-## 5. 維運指南
+## 5. 疑難排解
 
-### 5.1 日常維運作業
-
-#### 上傳新文件
-
-1. 透過 Azure Portal 或 azcopy 上傳至 Blob Storage 的 `documents` 容器
-2. 等待 CRON 排程觸發 (預設每 6 小時)
-3. 或手動觸發 Ingestion：
-
-```powershell
-# 呼叫 Ingestion API
-Invoke-RestMethod -Uri "https://ca-ingest-gprag.xxx.azurecontainerapps.io/jobs/run-blob-indexer" -Method POST
-```
-
-#### 查看 Ingestion 狀態
-
-```powershell
-# 檢查 Job 記錄
-az storage blob list --account-name st{token} --container-name jobs --output table
-```
-
-#### 重啟服務
-
-```powershell
-# 方法 1: 新增環境變數觸發新 Revision
-$ts = Get-Date -Format "yyyyMMddHHmmss"
-az containerapp update --name ca-{token}-frontend --resource-group GPRAG `
-  --set-env-vars "RESTART_TS=$ts"
-
-# 方法 2: 重新部署
-az containerapp revision restart --name ca-{token}-frontend --resource-group GPRAG `
-  --revision {revision-name}
-```
-
-### 5.2 監控與告警
-
-#### Application Insights 查詢
-
-```kusto
-// 查看請求延遲
-requests
-| where timestamp > ago(1h)
-| summarize avg(duration), percentile(duration, 95) by bin(timestamp, 5m)
-| render timechart
-
-// 查看錯誤
-exceptions
-| where timestamp > ago(1h)
-| summarize count() by type, outerMessage
-| order by count_ desc
-```
-
-#### 成本監控
-
-| 服務 | 預估每日成本 | 說明 |
-|------|-------------|------|
-| AI Search (Basic) | ~$2.8 USD | 固定費用 |
-| App Configuration | ~$1.2 USD | 固定費用 |
-| Cosmos DB | ~$0.5 USD | 依使用量 |
-| Container Apps | ~$0 | Scale to zero |
-| **Azure OpenAI** | **依使用量** | 主要成本 |
-| **Document Intelligence** | **依使用量** | Ingestion 時產生 |
-
-⚠️ **成本警告**: Document Intelligence 按頁計費 ($10/1000頁)，大量 Ingestion 時需注意
-
-### 5.3 備份與還原
-
-#### Cosmos DB 備份
-
-Cosmos DB Serverless 自動啟用連續備份，可透過 Azure Portal 進行 Point-in-time 還原。
-
-#### AI Search 備份
-
-```powershell
-# 匯出索引定義
-$indexName = "ragindex-{token}"
-$searchEndpoint = "https://srch-{token}.search.windows.net"
-$token = az account get-access-token --resource "https://search.azure.com" --query accessToken -o tsv
-
-Invoke-RestMethod -Uri "$searchEndpoint/indexes/$indexName?api-version=2023-11-01" `
-  -Headers @{ "Authorization" = "Bearer $token" } | ConvertTo-Json -Depth 10 > index-backup.json
-```
-
----
-
-## 6. 疑難排解
-
-### 6.1 常見問題
+### 5.1 常見問題
 
 #### 問題 1: Frontend 顯示 "An internal server error occurred."
 
@@ -599,56 +713,14 @@ az containerapp update --name ca-ingest-gprag --resource-group GPRAG `
 **優化建議**:
 - 使用較小的模型 (如 GPT-4.1 Mini)
 - 減少 `SEARCH_RAGINDEX_TOP_K`
+- 調整 Chunk 大小 — 降低 `CHUNK_SIZE` (如從 2048 降至 1024 tokens)，使每個 chunk 內容更精簡，減少 LLM 輸入 token 數量，從而加速回應生成
 - 簡化 System Prompt
-
-### 6.2 已知問題
-
-| 問題 | 狀態 | Workaround |
-|------|------|------------|
-| ManagedIdentityCredential 失敗 | 已修復 | 確保 `AZURE_CLIENT_ID` 為 None (不要設 "*") |
-| SpreadsheetChunker 無限制大小 | 待處理 | 設定 `SPREADSHEET_CHUNKING_NUM_TOKENS=2048` |
-| Azure Policy 自動關閉 Public Access | 持續發生 | 定期檢查並手動開啟 |
-| upload_documents 未檢查結果 | 已修復 | `blob_storage_indexer.py` 已加入錯誤檢查 |
-
-### 6.3 成本異常案例
-
-#### Document Intelligence 成本失控 ($2,000+ USD)
-
-**根本原因**：
-1. CRON 設定錯誤 (`*/5 * * * *` 每 5 分鐘執行)
-2. Container OOM (1Gi 記憶體不足) 導致重啟循環
-3. 每次重啟觸發完整索引
-
-**預防措施**：
-```powershell
-# 1. 正確的 CRON 設定
-CRON_RUN_BLOB_INDEX = "0 */6 * * *"  # 每 6 小時
-
-# 2. 足夠的記憶體
-az containerapp update --name ca-ingest-gprag --resource-group GPRAG --cpu 1.0 --memory 2Gi
-
-# 3. 停用啟動時自動執行
-RUN_JOBS_ON_STARTUP = false
-
-# 4. 設定 Azure 成本警報
-```
 
 ---
 
-## 7. 附錄
+## 6. 附錄
 
-### 7.1 相關文件
-
-| 文件 | 說明 |
-|------|------|
-| [architecture-overview.md](architecture-overview.md) | 系統架構詳細說明 |
-| [deployment-troubleshooting.md](deployment-troubleshooting.md) | 部署問題排解 |
-| [cost-estimation-summary.md](cost-estimation-summary.md) | 成本估算摘要 |
-| [streaming-latency-analysis.md](streaming-latency-analysis.md) | 延遲分析報告 |
-| [ingestion-flow-analysis.md](ingestion-flow-analysis.md) | Ingestion 流程分析 |
-| [history.md](history.md) | 專案開發歷史記錄 |
-
-### 7.2 重要聯絡資訊
+### 6.1 重要聯絡資訊
 
 | 角色 | 說明 |
 |------|------|
@@ -657,7 +729,7 @@ RUN_JOBS_ON_STARTUP = false
 | **Resource Group** | GPRAG |
 | **部署區域** | East US 2 |
 
-### 7.3 版本歷史
+### 6.2 版本歷史
 
 | 版本 | 日期 | 變更說明 |
 |------|------|----------|
