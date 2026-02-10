@@ -38,7 +38,7 @@ def get_managed_identity_token():
     return credential.get_token("https://management.azure.com/.default").token
 
 
-async def call_orchestrator_stream(conversation_id: str, question: str, auth_info: dict, question_id: str | None = None, debug_mode: bool = False):    
+async def call_orchestrator_stream(conversation_id: str, question: str, auth_info: dict, question_id: str | None = None, debug_mode: bool = False, search_index: str | None = None):    
     # Read Dapr settings and target app ID
     orchestrator_app_id = "orchestrator"
     base_url = _get_orchestrator_base_url()
@@ -82,6 +82,9 @@ async def call_orchestrator_stream(conversation_id: str, question: str, auth_inf
 
     if question_id:
         payload["question_id"] = question_id 
+
+    if search_index:
+        payload["search_index"] = search_index
 
 
     # Invoke through Dapr sidecar and stream response

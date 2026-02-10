@@ -362,6 +362,7 @@ async def on_chat_start():
     # Default debug mode is ON (can be toggled by /debug command)
     debug_mode = config.get("DEBUG_MODE_ENABLED", True, bool)
     cl.user_session.set("debug_mode", debug_mode)
+    cl.user_session.set("search_index", None)  # Use default index
 
 @cl.on_message
 async def handle_message(message: cl.Message):
@@ -381,6 +382,28 @@ async def handle_message(message: cl.Message):
         debug_mode = cl.user_session.get("debug_mode", False)
         status = "啟用 🟢" if debug_mode else "關閉 🔴"
         await cl.Message(content=f"🐛 **Debug Mode 狀態**: {status}").send()
+        return
+    elif msg_lower.startswith("/index "):
+        index_name = message.content.strip()[7:].strip()
+        if index_name:
+            cl.user_session.set("search_index", index_name)
+            await cl.Message(content=f"🔍 **Search Index 已切換為**: `{index_name}`").send()
+        else:
+            await cl.Message(content="⚠️ 請指定 Index 名稱，例如 `/index ragindex-second`").send()
+        return
+    elif msg_lower == "/index":
+        current_index = cl.user_session.get("search_index", None)
+        display = current_index if current_index else "預設 (ragindex)"
+        await cl.Message(content=f"""🔍 **目前 Search Index**: `{display}`
+
+**使用方式**:
+- `/index ragindex` - 切換到預設索引
+- `/index ragindex-second` - 切換到第二個索引
+- `/index reset` - 重設為預設索引""").send()
+        return
+    elif msg_lower == "/index reset":
+        cl.user_session.set("search_index", None)
+        await cl.Message(content="🔍 **Search Index 已重設為預設值**").send()
         return
     
     with tracer.start_as_current_span('handle_message', kind=SpanKind.SERVER) as span:
@@ -445,7 +468,10 @@ async def handle_message(message: cl.Message):
         # Check if debug mode is enabled
         debug_mode = cl.user_session.get("debug_mode", False)
         
-        generator = call_orchestrator_stream(conversation_id, message.content, auth_info, message.id, debug_mode=debug_mode)
+        # Get search index override (if any)
+        search_index = cl.user_session.get("search_index", None)
+        
+        generator = call_orchestrator_stream(conversation_id, message.content, auth_info, message.id, debug_mode=debug_mode, search_index=search_index)
 
         chunk_count = 0
         first_content_seen = False

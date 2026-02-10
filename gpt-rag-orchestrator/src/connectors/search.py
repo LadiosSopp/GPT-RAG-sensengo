@@ -60,6 +60,7 @@ class SearchClient:
         self.search_service = self.cfg.get('SEARCH_SERVICE_NAME')
         self.use_semantic = self.cfg.get('SEARCH_USE_SEMANTIC', 'false').lower() == 'true'
         self.index_name = self.cfg.get("SEARCH_RAG_INDEX_NAME", "ragindex")
+        self._default_index_name = self.index_name  # preserve original for reset
         
         # Initialize GenAIModelClient for embeddings (only if needed for vector/hybrid search)
         self.aoai_client = None
@@ -81,6 +82,11 @@ class SearchClient:
         logging.info("[SearchClient]    Index: %s", self.index_name)
         logging.info("[SearchClient]    Approach: %s", self.search_approach)
         logging.info("[SearchClient]    Top K: %s", self.search_top_k)
+
+    def override_index(self, index_name: str):
+        """Override the search index for this request."""
+        self.index_name = index_name
+        logging.info("[SearchClient] Index overridden to: %s", index_name)
 
     async def search(self, index_name: str, body: dict) -> dict:
         """

@@ -28,7 +28,7 @@ class Orchestrator:
         self.database_container = cfg.get("CONVERSATIONS_DATABASE_CONTAINER", "conversations")
         
     @classmethod
-    async def create(cls, conversation_id: str = None, user_context: Dict = {}, debug_mode: bool = False):
+    async def create(cls, conversation_id: str = None, user_context: Dict = {}, debug_mode: bool = False, search_index: Optional[str] = None):
         instance = cls(conversation_id=conversation_id)
 
         # app configuration
@@ -45,6 +45,10 @@ class Orchestrator:
         # Pass debug_mode to strategy
         if hasattr(instance.agentic_strategy, 'debug_enabled'):
             instance.agentic_strategy.debug_enabled = debug_mode
+
+        # Pass search_index override to strategy
+        if search_index and hasattr(instance.agentic_strategy, 'set_search_index'):
+            instance.agentic_strategy.set_search_index(search_index)
 
         return instance
 

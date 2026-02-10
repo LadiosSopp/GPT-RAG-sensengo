@@ -34,6 +34,7 @@ from .agent_strategies import AgentStrategies
 from dependencies import get_config
 from connectors import SearchClient
 from connectors.search import set_rag_debug_callback
+from connectors.call_transcripts import CallTranscriptClient
 from debug_events import DebugEventCollector, DEBUG_EVENT_PREFIX, DEBUG_EVENT_SUFFIX
 
 # ============================================================
@@ -223,6 +224,25 @@ class SingleAgentRAGStrategyV1(BaseAgentStrategy):
             
             logging.info("[Init] Custom retrieval function tool configured successfully")
 
+        # --- Initialize CallTranscriptClient for call-transcript queries ---
+        call_transcripts_enabled = cfg.get("CALL_TRANSCRIPTS_ENABLED", False, type=bool)
+        self.call_transcript_client = None
+
+        if call_transcripts_enabled:
+            try:
+                self.call_transcript_client = CallTranscriptClient()
+                ct_functions = {self.call_transcript_client.query_call_transcripts}
+                ct_tool = FunctionTool(functions=ct_functions)
+                for tool_def in ct_tool.definitions:
+                    self.tools_list.append(tool_def)
+                    logging.debug(f"[Init] Added call transcript function tool: {tool_def}")
+                logging.info("[Init] ✅ CallTranscriptClient function tool configured")
+            except Exception as e:
+                logging.warning("[Init] ⚠️ Could not initialize CallTranscriptClient: %s", e)
+                self.call_transcript_client = None
+        else:
+            logging.info("[Init] CALL_TRANSCRIPTS_ENABLED not set. Call transcript tool disabled.")
+
         # --- Initialize BingGroundingTool (if configured) ---
         bing_enabled = cfg.get("BING_RETRIEVAL_ENABLED", False, type=bool)
         if not bing_enabled:
@@ -240,6 +260,11 @@ class SingleAgentRAGStrategyV1(BaseAgentStrategy):
         logging.debug(f"[Init] Final tools_list: {self.tools_list}")
         logging.debug(f"[Init] Final tool_resources: {self.tool_resources}")
 
+    def set_search_index(self, index_name: str):
+        """Override the AI Search index for this request."""
+        if self.search_client:
+            self.search_client.override_index(index_name)
+            logging.info(f"[Strategy] Search index overridden to: {index_name}")
 
     async def initiate_agent_flow(self, user_message: str):
         """
@@ -270,8 +295,13 @@ class SingleAgentRAGStrategyV1(BaseAgentStrategy):
 
         async with self.project_client as project_client:
             # Step 0: Register custom retrieval function for auto-execution
+            auto_functions = set()
             if self.search_client:
-                project_client.agents.enable_auto_function_calls({self.search_client.search_knowledge_base})
+                auto_functions.add(self.search_client.search_knowledge_base)
+            if self.call_transcript_client:
+                auto_functions.add(self.call_transcript_client.query_call_transcripts)
+            if auto_functions:
+                project_client.agents.enable_auto_function_calls(auto_functions)
             
             # Step 1: Manage thread lifecycle (create or reuse)
             self.debug_collector.start_timer("thread_management")
@@ -401,6 +431,7 @@ class SingleAgentRAGStrategyV1(BaseAgentStrategy):
                     "user_context": self.user_context or {},
                     "bing_grounding_enabled": bing_enabled,
                     "aisearch_enabled": aisearch_enabled,
+                    "call_transcripts_enabled": self.call_transcript_client is not None,
                 }
 
                 instructions = await self._read_prompt(

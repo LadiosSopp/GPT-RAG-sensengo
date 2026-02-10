@@ -568,3 +568,176 @@ function adjustMainContent(enable) {
 ---
 
 *最後更新：2026-01-27*
+
+---
+
+## Session: 2026-01-30 - TPM 配額調整與 Q&A 文件整理
+
+### 📋 工作摘要
+
+本次 session 解決了 **GPT-5.2 TPM 配額用盡**導致的 Internal Server Error，並將 Q&A 測試紀錄整理為標準 Markdown 格式。
+
+---
+
+### 🔧 1. TPM 配額問題修復
+
+**問題描述：**
+詢問「有櫻坂46相關的表演資訊嗎?」時，系統回傳：
+```
+event: error
+data: An internal server error occurred.
+```
+
+**錯誤日誌：**
+```
+[Stream Debug] Event: thread.run.failed
+[Stream] Run failed: Sorry, something went wrong.
+Run completed - usage: {'prompt_tokens': 0, 'completion_tokens': 0, 'total_tokens': 0}
+```
+
+**根本原因：**
+- GPT-5.2 Deployment 的 **TPM (Tokens Per Minute) 配額用完**
+- 原設定：40K TPM（每分鐘 40,000 tokens）
+- 當分鐘內使用量達到上限時，Azure AI Foundry 返回模糊的錯誤訊息
+
+**解決方案：**
+將 `chat` deployment 的 capacity 從 40 調高到 80：
+```bash
+az rest --method patch \
+  --url "https://management.azure.com/subscriptions/{subscription-id}/resourceGroups/GPRAG/providers/Microsoft.CognitiveServices/accounts/aif-2v3lfktkn4xam-gprag/deployments/chat?api-version=2023-05-01" \
+  --body '{"sku":{"name":"GlobalStandard","capacity":80}}'
+```
+
+**調整前後對比：**
+| 設定 | 調整前 | 調整後 |
+|------|--------|--------|
+| Capacity | 40 | 80 |
+| Token Rate Limit | 40,000/分鐘 | 80,000/分鐘 |
+| Request Rate Limit | 400/分鐘 | 800/分鐘 |
+
+**重要說明：**
+- TPM 是**速率限制**，不是計費單位
+- 調高 TPM 配額**不會增加費用**，費用仍按實際使用量計算
+- 配額每分鐘重置一次
+
+---
+
+### 📝 2. Q&A 文件整理
+
+將 [Q&A.md](../doc/Q&A.md) 文件套用標準 Markdown 格式：
+
+- 使用 `##` 標示各題編號
+- 使用 `**A1.**` 粗體標示答覆
+- 使用 `-` 清單整理條列項目
+- 使用 `>` 引用區塊標示資料來源
+- 使用 `---` 分隔各題
+- 使用 ``` 標示程式碼區塊
+
+**Q&A 紀錄包含 11 題測試問答**，涵蓋：
+- 市議員學歷查詢
+- 老舊公寓會員數統計
+- 佐登妮絲 AI 應用介紹
+- 森JP塔資訊
+- 收藏家等級分類
+- 藝術品拍賣資訊
+- 重劃區面積比較
+- 親子公園列表
+- 藏壽司 BT21 聯名活動
+- TPM 配額問題記錄
+
+---
+
+*最後更新：2026-01-30*
+
+---
+
+## Session: 2026-02-05 - Chunk 長度分析
+
+### 📋 工作摘要
+
+本次 session 分析了 AI Search Index 中 **chunk 長度的分布**，並調查了 chunking 機制的設定。
+
+---
+
+### 📊 1. Chunk 長度統計
+
+**查詢結果：**
+| 指標 | 數值 |
+|------|------|
+| 總 Chunks 數 | 876 |
+| 最大長度 | **31,772 字元** |
+| 最小長度 | 93 字元 |
+| 平均長度 | 1,464.85 字元 |
+
+**Top 10 最長 Chunks：**
+| 長度 | 標題 |
+|------|------|
+| 31,772 | 北北基桃 |
+| 10,379 | 總表 |
+| 10,263 | 總表 |
+| 4,961 | 2025 Bk Pop Up Store Event |
+| 4,883 | 標註 |
+| 3,953 | Lic All Ip Combination |
+| 3,393 | Lic All Ip Combination |
+| 3,377 | Lic All Ip Combination |
+| 3,274 | 工作表1 |
+| 3,092 | Lic All Ip Combination |
+
+---
+
+### ⚙️ 2. Chunking 機制說明
+
+**Chunker 選擇機制 (ChunkerFactory)：**
+
+根據檔案副檔名自動選擇對應的 Chunker：
+
+| 檔案類型 | Chunker |
+|----------|---------|
+| `.vtt` | TranscriptionChunker |
+| `.json` | JSONChunker |
+| `.xlsx`, `.xls` | SpreadsheetChunker |
+| `.pdf`, `.png`, `.jpeg`, `.jpg`, `.bmp`, `.tiff` | DocAnalysisChunker / MultimodalChunker |
+| `.docx`, `.pptx` | DocAnalysisChunker / MultimodalChunker |
+| 其他 | LangChainChunker |
+
+**預設 Chunking 參數：**
+
+| 參數 | 環境變數 | 預設值 | 說明 |
+|------|----------|--------|------|
+| max_chunk_size | `CHUNKING_NUM_TOKENS` | 2048 tokens | 最大 chunk 大小 |
+| token_overlap | `TOKEN_OVERLAP` | 100 tokens | 連續 chunk 間的重疊 |
+| minimum_chunk_size | `CHUNKING_MIN_CHUNK_SIZE` | 100 tokens | 最小 chunk 大小 |
+
+**SpreadsheetChunker 特殊設定：**
+
+| 參數 | 環境變數 | 預設值 | 說明 |
+|------|----------|--------|------|
+| max_chunk_size | `SPREADSHEET_CHUNKING_NUM_TOKENS` | **0** (無限制) | Excel 最大 chunk 大小 |
+| chunking_by_row | `SPREADSHEET_CHUNKING_BY_ROW` | false | 是否按列切分 |
+| include_header | `SPREADSHEET_CHUNKING_BY_ROW_INCLUDE_HEADER` | false | 是否包含標題列 |
+
+---
+
+### 🔍 3. 分析結論
+
+**為什麼會有 31,772 字元的超大 chunk？**
+
+- **原因：** SpreadsheetChunker 的預設值 `SPREADSHEET_CHUNKING_NUM_TOKENS = 0`
+- 當設為 0 時表示**不限制大小**
+- 整個 Excel 工作表會被當作一個 chunk
+- 「北北基桃」這個 Excel 檔案整頁匯入，產生 31,772 字元的 chunk
+
+**App Configuration 現況：**
+- 目前 App Configuration 中**沒有設定** chunking 相關參數
+- 所有參數使用程式碼中的預設值
+
+**建議調整（如需控制 chunk 大小）：**
+```
+SPREADSHEET_CHUNKING_NUM_TOKENS = 2048
+CHUNKING_NUM_TOKENS = 2048
+TOKEN_OVERLAP = 100
+```
+
+---
+
+*最後更新：2026-02-05*

@@ -12,9 +12,12 @@ RUN rm -f /etc/apt/sources.list.d/yarn.list 2>/dev/null || true \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Download and install Microsoft's package feed configuration
+#    Note: Use [trusted=yes] because Microsoft's Debian 12 repo GPG key uses SHA1,
+#    which is rejected by Debian Trixie's sqv since 2026-02-01.
 RUN curl -sSL -O https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb \
     && dpkg -i packages-microsoft-prod.deb \
     && rm packages-microsoft-prod.deb \
+    && sed -i 's|^deb \[|deb [trusted=yes |' /etc/apt/sources.list.d/microsoft-prod.list \
     && apt-get update
 
 # 3. Install ODBC runtime, headers, and the MS ODBC Driver 18

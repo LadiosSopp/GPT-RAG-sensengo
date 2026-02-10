@@ -358,9 +358,9 @@
         timingData = { ...timingData, ...data };
         
         // All possible timing stages from orchestrator
-        // Note: agent_response and response_streaming measure the same thing (streaming duration)
-        // agent_response = measured in orchestrator, response_streaming = measured in UI
-        // We show response_streaming as it's more accurate (includes network)
+        // Note: agent_response is the overall time for _stream_agent_response which includes
+        // llm_thinking_1 + tool_execution + llm_thinking_2, so we don't show it separately
+        // to avoid double counting
         const stages = [
             { key: 'request_start', icon: '🚀', label: 'Request Started' },
             { key: 'thread_creation', icon: '🧵', label: 'Thread Management' },
@@ -370,7 +370,7 @@
             { key: 'tool_execution', icon: '🔧', label: 'Tool Execution' },
             { key: 'search_query', icon: '🔍', label: 'AI Search' },
             { key: 'llm_thinking_2', icon: '💭', label: 'LLM Thinking #2' },
-            { key: 'response_streaming', icon: '📡', label: 'Response Streaming', fallbackKey: 'agent_response' },
+            // { key: 'response_streaming', icon: '📡', label: 'Response Streaming' },  // Removed: included in llm_thinking_1/2 + tool_execution
             { key: 'consolidate_history', icon: '📚', label: 'Consolidate History' },
             { key: 'cleanup_agent', icon: '🧹', label: 'Cleanup Agent' },
             { key: 'total_flow', icon: '⏱️', label: 'Orchestrator Total', isTotal: true },

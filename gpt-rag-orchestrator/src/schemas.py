@@ -70,6 +70,11 @@ class OrchestratorRequest(BaseModel):
         False,
         description="Enable debug mode to return detailed execution information including system prompts, RAG results, and timing data. (Optional)"
     )
+    search_index: Optional[str] = Field(
+        None,
+        description="Override the default AI Search index name for this request. When set, the orchestrator will search against the specified index instead of the default one. (Optional)",
+        example="ragindex-second",
+    )
 
     class Config:
         json_schema_extra = {
