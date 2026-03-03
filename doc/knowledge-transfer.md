@@ -584,6 +584,34 @@ az appconfig kv set --endpoint "https://appcs-{token}.azconfig.io" `
   --key "AGENT_STRATEGY" --value "single_agent_rag" --label "gpt-rag" --auth-mode login -y
 ```
 
+### 4.2.1 擴展工具：MCP vs 本地 FunctionTool
+
+系統已部署獨立的 **MCP Container App**（`gpt-rag-mcp`），提供標準化的工具擴展機制。新增工具有兩種方式：
+
+| | MCP 方式 | 本地 FunctionTool 方式 |
+|---|---|---|
+| **工具定義** | 在 MCP server 用 `@mcp.tool()` 裝飾器 | 在 orchestrator 的 `connectors/` 寫完整 Python class |
+| **發現機制** | Semantic Kernel 自動發現所有工具 | 需手動建立 `FunctionTool` 並註冊到 `tools_list` |
+| **執行位置** | MCP Container（獨立程序） | Orchestrator 程序內 |
+| **Agent 引擎** | Semantic Kernel `ChatCompletionAgent` | Azure AI Foundry Agent Service |
+| **新增工具成本** | 只改 MCP server，重新部署 MCP container | 需改 orchestrator 程式碼，重新部署 orchestrator |
+| **策略設定** | `AGENT_STRATEGY=mcp` | `AGENT_STRATEGY=single_agent_rag` |
+
+**MCP 方式**：只要在 `gpt-rag-mcp/src/server.py` 中用 `@mcp.tool()` 定義好工具介面，Orchestrator 透過 Semantic Kernel 的 `MCPSsePlugin` 就能自動發現並呼叫，無需修改 Orchestrator 程式碼。
+
+**本地 FunctionTool 方式**（如 `call_transcripts`）：需自行實作完整的連線邏輯、查詢建構、結果格式化，並在 strategy 中手動註冊為 `FunctionTool`。
+
+> ⚠️ **注意**：兩種策略使用**不同的 Agent 引擎**（MCP = Semantic Kernel, RAG = Azure AI Foundry Agent），切換時整個 agent 執行和對話管理方式都會改變。目前 MCP server 僅有 demo 工具（`add`、`wikipedia_search`），實際業務工具需另行開發並註冊。
+
+**MCP 相關 App Configuration**：
+
+| Key | 說明 | 預設值 |
+|-----|------|--------|
+| `MCP_APP_ENDPOINT` | MCP 伺服器 URL | `http://localhost:80` |
+| `MCP_CLIENT_TIMEOUT` | 連線逾時（秒） | `600` |
+| `MCP_APP_APIKEY` | API 金鑰（可選） | `None` |
+| `MCP_SERVER_TRANSPORT` | 傳輸方式 | `sse` |
+
 ### 4.3 設定參數清單
 
 #### 核心設定
@@ -672,22 +700,42 @@ az containerapp update --name ca-ingest-gprag --resource-group GPRAG `
   --cpu 1.0 --memory 2Gi
 ```
 
-#### 問題 4: 回應延遲過長 (~43 秒)
+#### 問題 4: 回應延遲過長
 
-**分析**: 這是 Agent 架構的正常現象
+**實測數據**: 冷啟動 40–50s，暖機後平均 ~15-16s
 
-| 階段 | 時間 | 說明 |
+**冷啟動**（`minReplicas=0`，閒置 5 分鐘後 scale-to-zero）:
+
+| 階段 | 時間 |
+|------|------|
+| Container 啟動 | ~5-10s |
+| Python/FastAPI 初始化 | ~2-3s |
+| Azure AD Token 取得 | ~2-3s |
+| DB 連線建立 | ~2-3s |
+| Agent Service 初始化 | ~3-5s |
+
+**暖機後瓶頸分佈** (~15-16s):
+
+| 階段 | 時間 | 佔比 |
 |------|------|------|
-| Cosmos DB | ~4s | 載入對話歷史 |
-| Agent 思考 | ~7s | 決定呼叫工具 |
-| RAG 檢索 | ~1.5s | 搜尋 + Embedding |
-| **LLM 生成** | **~27s** | 主要瓶頸 |
+| LLM 處理搜尋結果 | ~8-10s | 55% ❌ 最大瓶頸 |
+| Agent 思考＋選擇工具 | ~3-4s | 22% |
+| Cosmos DB | ~1-2s | 8% |
+| 搜尋執行 | ~1-1.5s | 7% |
+| 後處理 | ~1s | 5% |
+| Thread/Agent 建立 | ~0.5s | 3% |
 
-**優化建議**:
-- 使用較小的模型 (如 GPT-4.1 Mini)
-- 減少 `SEARCH_RAGINDEX_TOP_K`
-- 調整 Chunk 大小 — 降低 `CHUNK_SIZE` (如從 2048 降至 1024 tokens)，使每個 chunk 內容更精簡，減少 LLM 輸入 token 數量，從而加速回應生成
-- 簡化 System Prompt
+**根因**: Excel `SPREADSHEET_CHUNKING_NUM_TOKENS=0`（無限制），每個 sheet 變成一個 ~8,000-10,000 tokens 的 chunk，topK=3 搜尋後送入 LLM 的 token 量高達 ~24,000。
+
+**已驗證的優化方案（2026-02-25）**:
+
+| 方案 | 效果 | 風險 |
+|------|------|------|
+| **Hybrid chunking**（by-sheet + by-row 同時寫入 index） | 品質最佳（0 次回答錯誤）、速度不變 | 零風險 ✅ |
+| **設定 AGENT_ID**（預建立 Agent） | 每次省 ~1.5s | 零風險 ✅ |
+| **minReplicas=1** | 消除冷啟動 | +$30-50/月 |
+| **切換 gpt-4o-mini / GPT-4 nano** | 快 50-60%（預估） | 需驗證品質 |
+| **Lite prompt** | 省 ~450 tokens/次（速度無差異） | 零風險 |
 
 ### 5.2 成本及配額說明（Cost & Quota Awareness）
 

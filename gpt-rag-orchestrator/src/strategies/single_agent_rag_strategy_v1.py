@@ -260,6 +260,8 @@ class SingleAgentRAGStrategyV1(BaseAgentStrategy):
         logging.debug(f"[Init] Final tools_list: {self.tools_list}")
         logging.debug(f"[Init] Final tool_resources: {self.tool_resources}")
 
+    prompt_mode: Optional[str] = None  # 'lite' for shorter prompt
+
     def set_search_index(self, index_name: str):
         """Override the AI Search index for this request."""
         if self.search_client:
@@ -434,8 +436,9 @@ class SingleAgentRAGStrategyV1(BaseAgentStrategy):
                     "call_transcripts_enabled": self.call_transcript_client is not None,
                 }
 
+                prompt_name = "main_lite" if self.prompt_mode == "lite" else "main"
                 instructions = await self._read_prompt(
-                    "main",
+                    prompt_name,
                     use_jinja2=True,
                     jinja2_context=prompt_context,
                 )
@@ -444,8 +447,8 @@ class SingleAgentRAGStrategyV1(BaseAgentStrategy):
                 if self.debug_collector and self.debug_enabled:
                     self.debug_collector.record_system_prompt(
                         prompt=instructions,
-                        template_name="single_agent_rag/main.jinja2",
-                        context_vars=prompt_context
+                        template_name=f"single_agent_rag/{prompt_name}.jinja2",
+                        context_vars={**prompt_context, "prompt_mode": self.prompt_mode}
                     )
                 
                 agent = await project_client.agents.create_agent(

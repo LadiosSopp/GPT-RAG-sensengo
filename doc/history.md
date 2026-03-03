@@ -741,3 +741,228 @@ TOKEN_OVERLAP = 100
 ---
 
 *最後更新：2026-02-05*
+
+---
+
+## Session: 2026-02-09~11 - 通話記錄查詢功能與 Knowledge Transfer 文件
+
+### 📋 工作摘要
+
+本次 session 實作了**通話記錄查詢功能 (Call Transcripts)**，透過 Function Calling 讓 Agent 能查詢 Cosmos DB 中的客戶通話資料。同時新增 Search Index 切換功能、修復 Dockerfile GPG 問題，並完成知識轉移文件。
+
+---
+
+### 📞 1. 通話記錄查詢功能 (Call Transcripts)
+
+**功能概述：**
+將會員卡推廣通話記錄 (xlsx, 1,100 筆) 匯入 Cosmos DB，透過 Azure AI Agent SDK 的 **FunctionTool** 機制，讓 LLM Agent 能查詢通話記錄。
+
+**架構選擇：** 使用 FunctionTool（嵌入 Orchestrator），而非 MCP（獨立服務）
+
+**新增檔案：**
+
+| 檔案 | 說明 |
+|------|------|
+| `gpt-rag-orchestrator/src/connectors/call_transcripts.py` | Cosmos DB 查詢 Connector (`CallTranscriptClient`) |
+| `scripts/import_call_transcripts.py` | 一次性 xlsx → Cosmos DB 匯入腳本 |
+| `doc/call-transcripts-architecture.md` | 功能架構文件 (318 行) |
+
+**`CallTranscriptClient.query_call_transcripts()` 參數：**
+
+| 參數 | 類型 | 說明 |
+|------|------|------|
+| `customer_id` | str | 客代篩選 |
+| `status` | str | 推銷狀態：「成功」/「失敗」|
+| `call_date` | str | 日期篩選 (YYYY-MM-DD) |
+| `keyword` | str | 逐字稿關鍵字搜尋 |
+| `top` | int | 最大回傳筆數 (預設 10, 上限 50) |
+| `include_full_transcript` | str | `"true"` 回傳完整逐字稿 |
+
+**Cosmos DB 設定：**
+
+| 設定 | 值 |
+|------|------|
+| 容器 | `call-transcripts` |
+| Partition Key | `/customer_id` |
+| 模式 | Serverless |
+| 資料筆數 | 1,100 |
+| 成功/失敗 | 676 / 424 |
+
+**App Configuration 開關：**
+```bash
+# 啟用/停用（不需重新部署程式碼）
+az appconfig kv set --endpoint https://appcs-2v3lfktkn4xam-gprag.azconfig.io \
+  --key CALL_TRANSCRIPTS_ENABLED --value true --label gpt-rag --auth-mode login -y
+```
+
+---
+
+### 🔧 2. Orchestrator 修改
+
+**修改檔案：**
+
+| 檔案 | 變更 |
+|------|------|
+| `gpt-rag-orchestrator/src/strategies/single_agent_rag_strategy_v1.py` | 引入 CallTranscriptClient、建立 FunctionTool、註冊 auto_functions |
+| `gpt-rag-orchestrator/src/orchestration/orchestrator.py` | 新增 `search_index` 參數傳遞 |
+| `gpt-rag-orchestrator/src/connectors/search.py` | 新增 `override_index()` 方法 |
+| `gpt-rag-orchestrator/src/schemas.py` | 新增 `search_index` 欄位 |
+| `gpt-rag-orchestrator/src/main.py` | 傳遞 `search_index` 到 Orchestrator |
+| `gpt-rag-orchestrator/src/prompts/single_agent_rag/main.jinja2` | 新增 Tool Selection 決策表 |
+
+**Prompt 模板重構 — Tool Selection 決策表：**
+
+| 問題類型 | 使用工具 |
+|---------|----------|
+| 客戶通話記錄、推銷狀態分析 | `query_call_transcripts` |
+| 文件、政策、知識文章 | `search_knowledge_base` |
+| 混合問題 | 兩者皆用 |
+
+---
+
+### 🔍 3. Search Index 切換功能
+
+**Frontend 新增 `/index` 指令：**
+- `/index ragindex-second` — 切換到指定 Index
+- `/index` — 查看目前 Index
+- `/index reset` — 重設為預設 Index
+
+**完整傳遞鏈：**
+```
+UI (/index 指令) → orchestrator_client.py (payload) → main.py → orchestrator.py → strategy.set_search_index() → search.py.override_index()
+```
+
+**修改檔案：**
+
+| 檔案 | 變更 |
+|------|------|
+| `gpt-rag-ui/app.py` | 新增 `/index` 指令處理、傳遞 `search_index` 參數 |
+| `gpt-rag-ui/orchestrator_client.py` | `call_orchestrator_stream` 新增 `search_index` 參數 |
+
+---
+
+### 🐳 4. Dockerfile GPG 修復
+
+**問題：** Debian Trixie 的 `sqv` 自 2026-02-01 起拒絕 SHA1 簽名的 GPG key，導致 Microsoft Debian 12 repo 無法通過驗證。
+
+**解決：**
+```dockerfile
+# 在 Orchestrator Dockerfile 中加入
+RUN sed -i 's|^deb \[|deb [trusted=yes |' /etc/apt/sources.list.d/microsoft-prod.list
+```
+
+---
+
+### ⏱️ 5. Debug Panel Timing 修正
+
+移除 `response_streaming` stage，避免與 `llm_thinking_1 + tool_execution + llm_thinking_2` 重複計算。
+
+---
+
+### 📝 6. Knowledge Transfer 文件
+
+新增並多次迭代 [knowledge-transfer.md](knowledge-transfer.md)：
+- 完整專案架構與元件說明
+- Function call chains
+- Chunk size optimization 說明
+- 準確性聲明、成本配額說明
+- 移除附錄章節
+
+---
+
+### 🚀 7. 部署版本
+
+| 元件 | Image Tag |
+|------|-----------|
+| Orchestrator | `orchestrator:20260209152559` |
+
+---
+
+### 📌 提交記錄
+
+| Commit | 日期 | 說明 |
+|--------|------|------|
+| `808b640` | 2026-02-10 | feat: add call transcripts feature and knowledge transfer docs (16 files, +1327) |
+| `42956f2` | 2026-02-10 | docs: update knowledge-transfer (+297/-225) |
+| `918883b` | 2026-02-11 | docs: 新增準確性聲明、成本配額說明，移除附錄章節 (+30/-51) |
+
+---
+
+### ⚠️ 未追蹤檔案（尚未 commit）
+
+- `doc/call-transcripts-architecture.md` — 通話記錄功能架構文件
+- `doc/knowledge-transfer.html` — KT 文件 HTML 版
+- `doc/knowledge-transfer_sensengo.pdf` / `_v1.pdf` — KT 文件 PDF exports
+- `doc/responsetime_optimize.md` — 回應時間優化分析報告
+
+---
+
+## Phase 8: 回應時間優化與 Prompt 切換功能 (2026-02-24 ~ 2026-02-25)
+
+### 📊 1. 回應時間瓶頸分析
+
+以「林口恩典大樓A棟時程表」為主要測試對象，分析端到端回應時間：
+- **冷啟動**：Container App scale-to-zero 導致首次請求額外等待 24-35s
+- **Excel 超大 chunk**：`SPREADSHEET_CHUNKING_NUM_TOKENS=0`（無限制）導致單一 chunk ~8,000 tokens
+- **LLM 處理時間**：占整體 ~63%（因搜尋結果 token 量大）
+
+### 🔬 2. Chunking 策略比較
+
+建立三個 AI Search Index 比較 Excel 的不同 chunking 策略：
+- `ragindex` — by-sheet（現有，每 sheet 一個 chunk）
+- `ragindex-byrow` — by-row（每行一個 chunk）
+- `ragindex-hybrid` — by-sheet + by-row 混合
+
+結論：三者速度差異不大（~15-16s），**hybrid 在回答品質上最佳**（從未回答錯誤）。
+
+### 📁 3. 檔案類型比較
+
+測試 PDF / DOCX / XLSX 共 20 題，結論：**檔案類型對回應時間影響不大**，瓶頸在 chunk 資訊密度和 LLM 搜尋次數。
+
+### 📝 4. System Prompt 精簡化
+
+新增 `/prompt` 前端指令，可切換 standard（~1000 tokens）與 lite（~400 tokens）兩種 prompt：
+- 10 題 benchmark：**差異幾乎為零**（0.4s / 2%），各贏 5 題
+- 結論：prompt 長度不是瓶頸，但 lite 可省 token 成本
+
+### 🚀 5. 部署版本
+
+| 元件 | Image Tag | 說明 |
+|------|-----------|------|
+| Orchestrator | `orchestrator:prompt-20260225091224` | 新增 prompt_mode 支援 |
+| Frontend | `frontend:prompt-20260225091224` | 新增 /prompt 指令 |
+
+部署方式：ACR Build + Azure Portal 手動更新（MFA Conditional Access 限制 CLI）。
+
+### 📁 6. 新增/修改的檔案
+
+| 檔案 | 變更 |
+|------|------|
+| `gpt-rag-orchestrator/src/schemas.py` | 新增 `prompt_mode` 欄位 |
+| `gpt-rag-orchestrator/src/main.py` | 解析並傳遞 `prompt_mode` |
+| `gpt-rag-orchestrator/src/orchestration/orchestrator.py` | 傳遞到 strategy |
+| `gpt-rag-orchestrator/src/strategies/single_agent_rag_strategy_v1.py` | 依 prompt_mode 選擇模板 |
+| `gpt-rag-orchestrator/src/prompts/single_agent_rag/main_lite.jinja2` | **新增** 精簡版 prompt |
+| `gpt-rag-ui/app.py` | 新增 `/prompt` 指令 |
+| `gpt-rag-ui/orchestrator_client.py` | 傳遞 `prompt_mode` 參數 |
+| `scripts/ingest_byrow.py` | **新增** by-row ingest 腳本 |
+| `scripts/ingest_hybrid.py` | **新增** hybrid ingest 腳本 |
+| `scripts/benchmark_index.py` | **新增** index 策略 benchmark |
+| `scripts/benchmark_filetypes.py` | **新增** 檔案類型 benchmark |
+| `scripts/benchmark_prompt.py` | **新增** prompt mode benchmark |
+| `scripts/deploy-prompt-feature.ps1` | **新增** 部署腳本 |
+| `doc/responsetime_optimize.md` | **新增** 完整分析報告 |
+
+### 📌 前端新指令
+
+```
+/prompt            ← 查看目前 prompt 模式
+/prompt lite       ← 切換到精簡版
+/prompt standard   ← 切回標準版
+/index ragindex-hybrid  ← 切換到 hybrid index
+/index reset       ← 切回預設 index
+```
+
+---
+
+*最後更新：2026-02-25*

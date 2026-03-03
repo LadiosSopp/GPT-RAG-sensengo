@@ -363,6 +363,7 @@ async def on_chat_start():
     debug_mode = config.get("DEBUG_MODE_ENABLED", True, bool)
     cl.user_session.set("debug_mode", debug_mode)
     cl.user_session.set("search_index", None)  # Use default index
+    cl.user_session.set("prompt_mode", None)  # Use default prompt
 
 @cl.on_message
 async def handle_message(message: cl.Message):
@@ -404,6 +405,26 @@ async def handle_message(message: cl.Message):
     elif msg_lower == "/index reset":
         cl.user_session.set("search_index", None)
         await cl.Message(content="🔍 **Search Index 已重設為預設值**").send()
+        return
+    elif msg_lower.startswith("/prompt "):
+        mode = message.content.strip()[8:].strip().lower()
+        if mode in ("lite", "standard", "reset"):
+            value = None if mode in ("standard", "reset") else mode
+            cl.user_session.set("prompt_mode", value)
+            display = mode if value else "standard (預設)"
+            await cl.Message(content=f"📝 **Prompt Mode 已切換為**: `{display}`").send()
+        else:
+            await cl.Message(content="⚠️ 無效模式。可用：`/prompt lite` 或 `/prompt standard`").send()
+        return
+    elif msg_lower == "/prompt":
+        current = cl.user_session.get("prompt_mode", None)
+        display = current if current else "standard (預設)"
+        await cl.Message(content=f"""📝 **目前 Prompt Mode**: `{display}`
+
+**使用方式**:
+- `/prompt lite` - 精簡版 prompt（減少 LLM 思考時間）
+- `/prompt standard` - 標準版 prompt
+- `/prompt reset` - 重設為預設""").send()
         return
     
     with tracer.start_as_current_span('handle_message', kind=SpanKind.SERVER) as span:
@@ -471,7 +492,9 @@ async def handle_message(message: cl.Message):
         # Get search index override (if any)
         search_index = cl.user_session.get("search_index", None)
         
-        generator = call_orchestrator_stream(conversation_id, message.content, auth_info, message.id, debug_mode=debug_mode, search_index=search_index)
+        prompt_mode = cl.user_session.get("prompt_mode", None)
+        
+        generator = call_orchestrator_stream(conversation_id, message.content, auth_info, message.id, debug_mode=debug_mode, search_index=search_index, prompt_mode=prompt_mode)
 
         chunk_count = 0
         first_content_seen = False

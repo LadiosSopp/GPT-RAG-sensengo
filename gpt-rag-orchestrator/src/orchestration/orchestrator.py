@@ -28,7 +28,7 @@ class Orchestrator:
         self.database_container = cfg.get("CONVERSATIONS_DATABASE_CONTAINER", "conversations")
         
     @classmethod
-    async def create(cls, conversation_id: str = None, user_context: Dict = {}, debug_mode: bool = False, search_index: Optional[str] = None):
+    async def create(cls, conversation_id: str = None, user_context: Dict = {}, debug_mode: bool = False, search_index: Optional[str] = None, prompt_mode: Optional[str] = None):
         instance = cls(conversation_id=conversation_id)
 
         # app configuration
@@ -49,6 +49,11 @@ class Orchestrator:
         # Pass search_index override to strategy
         if search_index and hasattr(instance.agentic_strategy, 'set_search_index'):
             instance.agentic_strategy.set_search_index(search_index)
+
+        # Pass prompt_mode override to strategy
+        if prompt_mode and hasattr(instance.agentic_strategy, 'prompt_mode'):
+            instance.agentic_strategy.prompt_mode = prompt_mode
+            logging.info(f"[Orchestrator] Prompt mode set to: {prompt_mode}")
 
         return instance
 

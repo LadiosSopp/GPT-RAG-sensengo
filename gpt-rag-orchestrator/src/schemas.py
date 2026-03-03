@@ -75,6 +75,11 @@ class OrchestratorRequest(BaseModel):
         description="Override the default AI Search index name for this request. When set, the orchestrator will search against the specified index instead of the default one. (Optional)",
         example="ragindex-second",
     )
+    prompt_mode: Optional[str] = Field(
+        None,
+        description="Override the system prompt template. 'lite' uses a shorter prompt to reduce LLM thinking time. (Optional)",
+        example="lite",
+    )
 
     class Config:
         json_schema_extra = {

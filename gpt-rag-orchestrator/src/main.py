@@ -130,14 +130,16 @@ async def orchestrator_endpoint(
     user_context = body.user_context or {}
     debug_mode = getattr(body, "debug_mode", False) or False
     search_index = getattr(body, "search_index", None)
+    prompt_mode = getattr(body, "prompt_mode", None)
     
-    logging.info(f"[Orchestrator API] debug_mode={debug_mode}, conversation_id={body.conversation_id}, search_index={search_index}")
+    logging.info(f"[Orchestrator API] debug_mode={debug_mode}, conversation_id={body.conversation_id}, search_index={search_index}, prompt_mode={prompt_mode}")
 
     orchestrator = await Orchestrator.create(
         conversation_id=body.conversation_id,
         user_context=user_context,
         debug_mode=debug_mode,
-        search_index=search_index
+        search_index=search_index,
+        prompt_mode=prompt_mode
     )
 
     async def sse_event_generator():
