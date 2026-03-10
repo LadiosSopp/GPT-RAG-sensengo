@@ -1,0 +1,7 @@
+27F設計單位
+恩典大樓30F坪數?
+恩典大樓全棟用途說明
+恩典大樓整體規劃有無瑕疵需改進
+
+Container App 設定 minReplicas: 0（scale-to-zero），閒置時完全關閉。
+設定 AGENT_ID

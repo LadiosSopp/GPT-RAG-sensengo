@@ -2,8 +2,8 @@
 
 > **專案名稱**: GPT-RAG Sensengo (林口恩典大樓企業資訊 Agent)  
 > **客戶**: 東森集團企業 (sensengo.com.tw)  
-> **建立日期**: 2026年2月6日  
-> **版本**: 1.0
+> **建立日期**: 2026年3月3日  
+> **版本**: 2.0
 
 ---
 
@@ -408,6 +408,68 @@
 
 > 若 `MULTIMODAL=true`，PDF/圖片/DOCX/PPTX 會改用 `MultimodalChunker`。
 
+**Embedding 生成機制**：
+
+所有 Chunker 都繼承自 `BaseChunker`（`gpt-rag-ingestion/chunking/chunkers/base_chunker.py`）。Embedding **不是在各個 Chunker 中個別實作**，而是統一在 `BaseChunker._create_chunk()` 方法中完成：
+
+```
+各 Chunker.get_chunks()
+    │
+    │  切分文件成多段 chunk
+    │
+    └──► BaseChunker._create_chunk(chunk_id, content, embedding_text, ...)
+              │
+              │  content_vector = self.aoai_client.get_embeddings(embedding_text)
+              │  （呼叫 Azure OpenAI text-embedding-3-large 生成向量）
+              │
+              └──► 回傳包含 contentVector 的 chunk dict
+```
+
+- 若 Chunker 提供 `embedding_text` 參數，則用該文字生成向量（例如 NL2SQLChunker 用 `question` 欄位）
+- 若未提供，則回退使用 chunk 的 `content` 文字生成向量
+- `MultimodalChunker` 是唯一例外：除了文字 embedding 外，額外對圖片 caption 生成 `captionVector`
+
+**Chunk + Vector 寫入 AI Search 的完整流程**：
+
+Chunker 產生的 vector 並不會自行寫入任何地方，而是隨 chunk dict 一路往上回傳，最終由 `BlobStorageDocumentIndexer` 寫入 Azure AI Search：
+
+```
+BlobStorageDocumentIndexer.run()                         ← CRON 排程觸發
+  │
+  ├── _load_latest_index_state()                         ← 從 AI Search 讀取已索引文件的 last_modified
+  ├── 列舉 Blob Storage 所有文件，比對 last_modified 篩出需更新的
+  │
+  └── _process_one(blob)                                 ← 並行處理 (max_concurrency)
+        │
+        ├── blob_client.download_blob()                  ← 下載文件 bytes
+        ├── DocumentChunker().chunk_documents(data)       ← ❺ 文件切分
+        │     │
+        │     └── ChunkerFactory().get_chunker(data)      ← ❻ 依副檔名選 Chunker
+        │           │
+        │           └── chunker.get_chunks()              ← 執行切分
+        │                 │
+        │                 └── BaseChunker._create_chunk()  ← Embedding 生成
+        │                       │
+        │                       └── 回傳 chunk dict (含 contentVector)
+        │
+        ├── _to_search_doc(chunk, ...)                    ← 轉換為 AI Search document 格式
+        │     mapping: chunk["contentVector"] → doc["contentVector"]
+        │              chunk["captionVector"] → doc["captionVector"]
+        │              chunk["content"]       → doc["content"]
+        │              + parent_id, metadata, security_ids 等
+        │
+        └── _replace_parent_docs(parent_id, docs)         ← 寫入 AI Search
+              │
+              ├── _delete_parent_docs(parent_id)           ← 先刪除該文件的所有舊 chunks
+              └── _upload_in_batches(docs)                 ← search_client.upload_documents()
+                                                             批次上傳至 AI Search Index
+```
+
+關鍵重點：
+- **Vector 的生命週期**：在 `_create_chunk()` 生成 → 隨 chunk dict 回傳 → `_to_search_doc()` 映射 → `upload_documents()` 寫入 AI Search Index
+- **增量更新**：只重新索引 `blob.last_modified > index.last_modified` 的文件，不會每次全部重跑
+- **原子替換**：對同一文件，先刪除所有舊 chunks 再上傳新的，確保一致性
+
 ---
 
 **Ingestion HTTP Endpoints 呼叫鏈** (手動觸發路徑):
@@ -463,7 +525,128 @@
   - `Microsoft.ContainerService`
   - `Microsoft.CognitiveServices`
 
-### 3.2 部署步驟
+### 3.2 Bicep 基礎設施客製化說明
+
+本專案基於 GPT-RAG Solution Accelerator **v2.3.0**，部署前需於 `GPT-RAG/infra/` 下確認以下客製化設定。
+
+#### 3.2.1 與預設範本的主要差異
+
+| 項目 | 預設範本 | Sensengo 客製 |
+|------|---------|--------------|
+| Chat 模型 | gpt-4.1 / 10 TPM | **gpt-5.2** / GlobalStandard / **40 TPM** |
+| Embedding 模型 | text-embedding-3-large / 1 TPM | text-embedding-3-large / **40 TPM** |
+| 資源命名 | `{type}-{token}` | `{type}-{token}-gprag`（加 `-gprag` 後綴） |
+| 部署標籤 | — | `Project: GPRAG` |
+| Bing Grounding | 可啟用 | **關閉** |
+| MCP 服務 | 可啟用 | **關閉** |
+| VM Jumpbox | 可啟用 | **關閉** |
+| PostgreSQL | 可啟用 | **關閉** |
+
+#### 3.2.2 AI 模型部署（constants.bicep）
+
+**檔案**: `GPT-RAG/infra/constants/constants.bicep`
+
+| 部署名稱 | 模型 | 版本 | SKU | 容量 (TPM) |
+|----------|------|------|-----|-----------|
+| `chat` | gpt-5.2 | `2025-12-11` | GlobalStandard | 40 |
+| `text-embedding` | text-embedding-3-large | `1` | Standard | 40 |
+
+> **注意**：若需變更模型版本或 TPM 容量，修改 `constants.bicep` 中的 `gptModelDeployments` 區塊。
+
+#### 3.2.3 Feature Flags（main.parameters.json）
+
+**檔案**: `GPT-RAG/infra/main.parameters.json`
+
+| Flag | 值 | 說明 |
+|------|---|------|
+| `deployAiFoundry` | **true** | 部署 AI Foundry |
+| `deployContainerApps` | **true** | 部署 Container Apps |
+| `deployCosmosDb` | **true** | 部署 Cosmos DB |
+| `deploySearchService` | **true** | 部署 AI Search |
+| `deployAppConfig` | **true** | 部署 App Configuration |
+| `deployGroundingWithBing` | **false** | 未啟用 Bing Grounding |
+| `deployMcp` | **false** | MCP 服務未部署 |
+| `deployVM` | **false** | 不部署 Jumpbox VM |
+| `deployPostgres` | **false** | 不使用 PostgreSQL |
+| `useZoneRedundancy` | **false** | 未啟用可用性區域備援 |
+| `networkIsolation` | 環境變數控制 | 支援 VNet 隔離 |
+| `greenFieldDeployment` | **true** | 全新部署模式 |
+
+#### 3.2.4 資源命名慣例
+
+第二次 commit 將所有資源加上 `-gprag` 後綴：
+
+| 資源類型 | 命名模式 | 範例 |
+|---------|---------|------|
+| AI Foundry Account | `aif-{token}-gprag` | `aif-2v3lfktkn4xam-gprag` |
+| AI Foundry Project | `aifp-{token}-gprag` | `aifp-2v3lfktkn4xam-gprag` |
+| AI Search | `srch-{token}-gprag` | `srch-2v3lfktkn4xam-gprag` |
+| App Configuration | `appcs-{token}-gprag` | `appcs-2v3lfktkn4xam-gprag` |
+| Container Registry | `cr{token}gprag` | `cr2v3lfktkn4xamgprag` |
+| Cosmos DB | `cosmos-{token}-gprag` | `cosmos-2v3lfktkn4xam-gprag` |
+| Key Vault | `kv-{token}-gprag` | `kv-2v3lfktkn4xam-gprag` |
+| Container Apps | `ca-{token}-{service}-gprag` | `ca-2v3lfktkn4xam-orch-gprag` |
+
+#### 3.2.5 Container Apps 配置（container-apps-list.bicep）
+
+**檔案**: `GPT-RAG/infra/modules/container-apps/container-apps-list.bicep`
+
+| 服務 | External | Replicas | Profile | 資源配置 |
+|------|----------|----------|---------|---------|
+| orchestrator | ✅ | 0–1 | Consumption | 0.5 vCPU / 1.0 Gi |
+| frontend | ✅ | 0–1 | Consumption | 0.5 vCPU / 1.0 Gi |
+| dataingest | ✅ | 0–1 | Consumption | 0.5 vCPU / 1.0 Gi |
+
+- 初始部署使用 dummy image：`mcr.microsoft.com/azuredocs/containerapps-helloworld:latest`
+- 全部啟用 **Dapr** sidecar（HTTP, port 80）
+- `azd deploy` 後會替換為實際 Container 映像
+
+#### 3.2.6 Cosmos DB 配置
+
+| 項目 | 值 |
+|------|---|
+| 容量模式 | **Serverless**（降低閒置成本） |
+| 一致性等級 | Session |
+| 分析儲存 | 啟用 |
+| 免費層 | 停用 |
+
+**Database Containers**：`conversations`、`datasources`、`prompts`、`mcp`
+
+#### 3.2.7 AI Search 配置
+
+| 項目 | 值 |
+|------|---|
+| SKU | **basic** |
+| Replica Count | 1 |
+| 本地驗證 | 啟用（AAD or API Key） |
+
+#### 3.2.8 App Configuration 重要設定
+
+**檔案**: `GPT-RAG/infra/modules/app-configuration/app-configuration.bicep`（label: `gpt-rag`）
+
+| Key | 值 | 說明 |
+|-----|---|------|
+| `AGENT_STRATEGY` | `single_agent_rag` | 使用單一 Agent RAG 策略 |
+| `PROMPT_SOURCE` | `file` | 從檔案載入 System Prompt |
+| `LOG_LEVEL` | `INFO` | 日誌等級 |
+| `ENABLE_CONSOLE_LOGGING` | `true` | 啟用主控台日誌 |
+| `CRON_RUN_BLOB_INDEX` | `10 * * * *` | 每小時第 10 分鐘執行索引 |
+| `CRON_RUN_BLOB_PURGE` | `0 * * * *` | 每小時整點執行清理 |
+| `GPT_RAG_RELEASE` | `release/2.3.0` | 加速器版本 |
+
+#### 3.2.9 元件版本（manifest.json）
+
+**檔案**: `GPT-RAG/infra/manifest.json`
+
+| 元件 | Tag | Release |
+|------|-----|---------|
+| GPT-RAG (主) | v2.3.0 | release/2.3.0 |
+| gpt-rag-ui | v2.1.1 | release/2.1.1 |
+| gpt-rag-orchestrator | v2.3.0 | release/2.3.0 |
+| gpt-rag-ingestion | v2.1.0 | release/2.1.0 |
+| gpt-rag-mcp | v0.3.4 | release/0.3.4 |
+
+### 3.3 部署步驟
 
 #### Step 1: 登入 Azure
 
@@ -523,7 +706,7 @@ az containerapp update --name ca-{token}-frontend --resource-group GPRAG `
   --image cr{token}.azurecr.io/azure-gpt-rag/frontend:$ts
 ```
 
-### 3.3 部署後驗證
+### 3.4 部署後驗證
 
 #### 驗證清單
 

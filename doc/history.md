@@ -966,3 +966,251 @@ RUN sed -i 's|^deb \[|deb [trusted=yes |' /etc/apt/sources.list.d/microsoft-prod
 ---
 
 *最後更新：2026-02-25*
+
+---
+
+## Session: 2026-02-25~03-03 - 優化報告定版、KT 文件更新與提交
+
+### 📋 工作摘要
+
+本次 session 完成回應時間優化報告的定版、更新 Knowledge Transfer 文件、調查 Container App scale 設定，並將所有變更提交推送。
+
+---
+
+### 📄 1. 優化報告定版
+
+建立 `doc/study/optimization_report_20260225.md`，經多次迭代最終以簡報導向架構定版：
+
+| 章節 | 內容 |
+|------|------|
+| Current Performance Overview | 冷/暖啟動對照、效能基線 |
+| Latency Breakdown Analysis | 各階段時間佔比、Excel chunk 根因、檔案類型/prompt 影響、XLSX chunking 策略比較 |
+| Optimization Options | 三個優先級方案（含動態 LLM 切換） |
+| Trade-offs Discussion | Latency vs Accuracy / Cost / Stability |
+| 結論 | ~15s 是否可接受的決策 flowchart |
+
+---
+
+### 📝 2. Knowledge Transfer 文件更新
+
+**新增 §4.2.1 擴展工具：MCP vs 本地 FunctionTool**
+- MCP 方式：`@mcp.tool()` 定義、Semantic Kernel 自動發現、獨立 container 部署
+- 本地 FunctionTool 方式（如 `call_transcripts`）：需自行實作並手動註冊
+- 兩種策略使用不同 Agent 引擎（MCP = Semantic Kernel, RAG = Azure AI Foundry Agent）
+- MCP 相關 App Configuration 參數
+
+**更新 §5.1 問題 4: 回應延遲過長**
+- 冷啟動分解（5 階段，35-50s）
+- 暖機後瓶頸分佈（6 階段，~15-16s）
+- 根因分析（Excel chunk 無限制）
+- 5 個已驗證優化方案（含效果與風險）
+
+---
+
+### 🔍 3. Container App Scale-to-Zero 調查
+
+| Container App | minReplicas | maxReplicas | cooldownPeriod | pollingInterval |
+|---|---|---|---|---|
+| Frontend | 0 | 3 | **300s (5 分鐘)** | 30s |
+| Orchestrator | 0 | 1 | **300s (5 分鐘)** | 30s |
+| DataIngest | 1 | 1 | — | — |
+
+- Scaling rule：HTTP scaler，`concurrentRequests: 10`
+- **閒置 5 分鐘後** Frontend 和 Orchestrator 會 scale down 到 0
+
+---
+
+### 📌 4. 提交記錄
+
+```
+193a61b feat: response time optimization, prompt mode, MCP docs, and benchmark scripts
+```
+
+**17 files changed**, +2,856/-21 lines, pushed to `master`
+
+---
+
+*最後更新：2026-03-03*
+
+---
+
+## Session: 2026-03-05~10 - KT 準備與技術深度整理
+
+### 📋 工作摘要
+
+本次 session 為客戶 KT（Knowledge Transfer）會議做準備，系統性地整理專案中所有需要向客戶說明的專有名詞與技術概念，並補充 KT 文件中遺漏的技術細節。
+
+---
+
+### 📚 1. 技術名詞深度解析
+
+依客戶視角將 KT 文件中的專有名詞分類整理，並逐一深入追蹤原始碼確認：
+
+**🔴 核心 AI 框架：**
+
+| 名詞 | 說明 |
+|------|------|
+| Azure AI Foundry Agent Service | Agent 生命週期管理 (Thread/Run/Tool)，使用 `azure-ai-agents>=1.2.0b4` (beta) |
+| Semantic Kernel (SK) | **僅用於 MCP 策略**作為 MCP 協議橋接，因 AI Foundry 原生不支援 MCP 協議 |
+| MCP (Model Context Protocol) | Anthropic 開源協議，透過 SK `MCPSsePlugin` 連接 MCP Server |
+| Agent Strategy 模式 | 6 種策略定義在 enum 中，但僅 3 種已實作：`single_agent_rag`/`single_agent_rag_v1`、`mcp`、`nl2sql` |
+
+**關鍵架構決策釐清：**
+- SK 存在的唯一原因：AI Foundry SDK 不支援 MCP 協議，需要 SK 作為 bridge
+- `mcp` 策略完全繞過 AI Foundry Agent Service，使用 SK 自己的 `ChatCompletionAgent`
+- `single_agent_rag` 和 `single_agent_rag_v1` 是同一策略的**別名**（向後相容）
+- Foundry Tools（Build 2025 發表）理論上可取代 SK bridge，但目前 SDK 版本尚未支援
+
+**🟠 資料處理：**
+
+| 名詞 | 說明 |
+|------|------|
+| Document Intelligence | 文件解析服務，4.0 API 支援 DOCX/PPTX |
+| Chunker 工廠模式 | `ChunkerFactory` 依副檔名選擇 7 種 Chunker |
+| BaseChunker._create_chunk() | 所有 Chunker 的 embedding 統一在此生成 |
+| `contentVector` vs `captionVector` | 前者＝文字內容向量（所有 chunk 都有）；後者＝圖片 caption 向量（僅 MultimodalChunker） |
+| NL2SQL | 自然語言轉 SQL 查詢，目標資料庫為 Azure SQL / Fabric SQL（非 PostgreSQL） |
+
+**🟡 架構元件：**
+
+| 名詞 | 說明 |
+|------|------|
+| Dapr Sidecar | Container Apps 服務間通訊，處理 service discovery + token 認證 |
+| FastAPI + Uvicorn | 後端 API 框架 + ASGI 伺服器 |
+| Pydantic Model | FastAPI 自動 request 驗證（`OrchestratorRequest`） |
+| Chainlit 2.6.0 | 前端 Chat UI 框架 |
+
+**🟢 基礎設施：**
+
+| 名詞 | 說明 |
+|------|------|
+| TPM (Tokens Per Minute) | 速率限制（含 input + output tokens），非計費單位 |
+| VM Jumpbox | 網路隔離模式下的跳板機，用於存取私有網路資源 |
+| `deployPostgres` | 預留擴展開關，目前 `false`；NL2SQL 實際用 SQL Server driver (ODBC 18) |
+
+---
+
+### 📝 2. KT 文件補充
+
+在 [knowledge-transfer.md](knowledge-transfer.md) 中新增兩個段落：
+
+**補充 1：Embedding 生成機制**（line ~411）
+- 說明所有 Chunker 的 embedding 統一在 `BaseChunker._create_chunk()` 中生成
+- 包含 `embedding_text` fallback 機制
+- 說明 `MultimodalChunker` 的 `captionVector` 例外
+
+**補充 2：Chunk + Vector 寫入 AI Search 的完整流程**（line ~432）
+- 端到端流程圖：CRON → `BlobStorageDocumentIndexer.run()` → `_process_one()` → `DocumentChunker` → `_to_search_doc()` → `_replace_parent_docs()` → `upload_documents()`
+- 說明 vector 生命週期：`_create_chunk()` 生成 → chunk dict 回傳 → `_to_search_doc()` 映射 → `upload_documents()` 寫入 AI Search
+- 說明增量更新與原子替換機制
+
+---
+
+### 🔍 3. 技術調查結論
+
+**PostgreSQL 在專案中的角色：**
+- `main.parameters.json` 有 `deployPostgres=false` 參數
+- 但 `main.bicep` 中**無任何 postgres 引用** — 模組尚未整合
+- NL2SQL 的 `SQLDBClient`（`connectors/sqldbs.py`）使用的是 **ODBC Driver 18 for SQL Server**
+- 結論：PostgreSQL 是 GPT-RAG accelerator 的**預留擴展**，目前 NL2SQL 走 Azure SQL / Fabric SQL
+
+**`_to_search_doc()` 映射機制：**
+- 本質是 merge 操作：Chunker 產出的內容欄位（content, contentVector, summary 等）+ Indexer 的 blob metadata（parent_id, security_ids, last_modified 等）
+- 欄位名稱同名直傳，不需轉換
+
+---
+
+### 📁 修改的檔案
+
+| 檔案 | 變更 |
+|------|------|
+| `doc/knowledge-transfer.md` | 新增「Embedding 生成機制」段落 + 「Chunk + Vector 寫入 AI Search 的完整流程」段落 |
+
+---
+
+### 📌 備註
+
+- 本次 session 無程式碼修改或部署，純屬文件補充與技術分析
+- KT 文件修改尚未 commit
+
+---
+
+*最後更新：2026-03-10*
+
+---
+
+## Session: 2026-02-26 - 東森多 Agent 架構分析與模型部署
+
+### 📋 工作摘要
+
+分析東森規劃的「AI 銷售中台」多 Agent 架構如何在 GPT-RAG 上實現，並嘗試部署 gpt-5.2-chat 模型。
+
+---
+
+### 🔍 1. 東森 AI 銷售中台 × GPT-RAG 可行性分析
+
+東森規劃的銷售中台需要 Planner 分流 → 4 條路線：
+
+| 路線 | 功能 | 觸發條件 |
+|------|------|----------|
+| A - 會員個人化推薦 | 四段式推薦話術 | 8 碼客代 + 推薦語意 |
+| B - 通用資訊查詢 | RAG 文件檢索回答 | 文件/權益/業務相關查詢 |
+| C - 拒絕處理模組 | 拒絕翻轉話術 | 8 碼客代 + 拒絕語意 |
+| D - 一般 GPT 助理 | 通用對話 | 不屬於 A/B/C |
+
+**識別 6 項困難：**
+1. 缺乏動態任務分流（Planner）機制 — 策略在啟動時由 config 全域決定，非逐請求動態切換
+2. 外部會員 API 整合不存在 — 需從零開發 Connector
+3. `MULTIAGENT` 策略僅佔位未實作（`agent_strategy_factory.py` 中被註解）
+4. 業務邏輯複雜度超越單純 RAG（四段式話術、拒絕翻轉、交通三鎖判定）
+5. Prompt 管理不足以支撐多模組
+6. 不同路線的對話脈絡與狀態模型不同
+
+**比較三種方案：**
+
+| 方案 | 做法 | 延遲 | 複雜度 |
+|------|------|------|--------|
+| A - 擴充策略模式 | 新增 PlannerStrategy + 子策略 | 低（2 次 LLM） | 中 |
+| B - MCP Server | 四條路線包裝為 MCP tools | 中（SSE 往返） | 較低 |
+| C - AgentGroupChat | 仿 NL2SQL 多 Agent 對話 | 高（4-6 次 LLM） | 高 |
+
+**建議採用方案 A**（擴充策略模式），理由：分流條件明確不需協商、延遲可控、完全複用現有架構、`MULTIAGENT` 枚舉已預留。
+
+---
+
+### 🖥️ 2. 模型盤點
+
+查詢 Azure AI Foundry 帳號 `aif-2v3lfktkn4xam-gprag` 中已部署的模型：
+
+| 部署名稱 | 模型 | 版本 | SKU | TPM |
+|----------|------|------|-----|-----|
+| chat | gpt-5.2 | 2025-12-11 | GlobalStandard | 80 |
+| text-embedding | text-embedding-3-large | 1 | Standard | 40 |
+
+注意：chat 部署的 TPM 已從 IaC 設定的 40 手動上調至 80。
+
+---
+
+### ⚠️ 3. gpt-5.2-chat 部署（未完成）
+
+- 已確認 eastus2 區域可用 `gpt-5.2-chat`（版本 2025-12-11 / 2026-02-10）
+- 部署指令因 **MFA Conditional Access Policy** 被拒（`RequestDisallowedByAzure`）
+- 多次嘗試 `az login`（含 `--use-device-code`、`--claims-challenge`）均未成功觸發 MFA step-up
+- **待辦**：需透過 Azure Portal 手動部署，或在瀏覽器中清除 session 後重新 `az login` 完成 MFA
+
+部署指令（待 MFA 通過後執行）：
+```powershell
+az cognitiveservices account deployment create `
+  --name aif-2v3lfktkn4xam-gprag `
+  --resource-group GPRAG `
+  --deployment-name "chat-5.2" `
+  --model-name "gpt-5.2-chat" `
+  --model-version "2026-02-10" `
+  --model-format OpenAI `
+  --sku-name GlobalStandard `
+  --sku-capacity 40
+```
+
+---
+
+*最後更新：2026-03-10*

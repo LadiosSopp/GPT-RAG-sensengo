@@ -1,0 +1,1838 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>GPT-RAG Sensengo KT 文件</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="" />
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">GPT-RAG Sensengo KT 文件</h1>
+</header>
+<h1 id="gpt-rag-sensengo-專案-knowledge-transfer-文件">GPT-RAG Sensengo
+專案 Knowledge Transfer 文件</h1>
+<blockquote>
+<p><strong>專案名稱</strong>: GPT-RAG Sensengo (林口恩典大樓企業資訊
+Agent)<br />
+<strong>客戶</strong>: 東森集團企業 (sensengo.com.tw)<br />
+<strong>建立日期</strong>: 2026年2月6日<br />
+<strong>版本</strong>: 1.0</p>
+</blockquote>
+<hr />
+<h2 id="目錄">📋 目錄</h2>
+<ol type="1">
+<li><a href="#1-專案概覽">專案概覽</a></li>
+<li><a href="#2-系統架構">系統架構</a></li>
+<li><a href="#3-部署指南">部署指南</a></li>
+<li><a href="#4-開發指南">開發指南</a></li>
+<li><a href="#5-疑難排解">疑難排解</a></li>
+</ol>
+<hr />
+<h2 id="專案概覽">1. 專案概覽</h2>
+<h3 id="專案背景">1.1 專案背景</h3>
+<p>東森集團正在興建「林口恩典大樓」(Grace
+Tower)，包含辦公室、酒店、餐廳、商場、教堂、展演空間等設施。此專案需要一個企業級
+RAG (Retrieval-Augmented Generation)
+系統，協助內部員工查詢專案相關資訊並進行商業規劃。</p>
+<h3 id="專案目標">1.2 專案目標</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>目標</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>正確性與創造性平衡</strong></td>
+<td>Agent 需能精確回答資料，同時具備創意發想能力</td>
+</tr>
+<tr>
+<td><strong>多模態支援</strong></td>
+<td>處理 Word、PowerPoint、Excel、圖片等多種檔案格式</td>
+</tr>
+<tr>
+<td><strong>檔案管理</strong></td>
+<td>支援上傳、刪除、版本控管</td>
+</tr>
+<tr>
+<td><strong>跨裝置存取</strong></td>
+<td>支援桌面、手機、平板等多種裝置</td>
+</tr>
+</tbody>
+</table>
+<h3 id="準確性聲明">1.3 準確性聲明</h3>
+<blockquote>
+<p><strong>重要提醒</strong>：本 GPT-RAG 解決方案加速器<strong>無法保證
+100% 的回答準確性</strong>。主要影響因素包括：</p>
+<ol type="1">
+<li><strong>LLM 模型本身的限制</strong> — 即便是最先進的 GPT
+模型，仍可能產生「幻覺」(Hallucination)，即生成看似合理但實際上不正確的內容。這是目前大型語言模型的固有特性，無法完全消除。</li>
+<li><strong>知識庫資料的數量與品質</strong> — AI Search
+引擎的回答品質直接取決於已匯入的文件資料。若資料不完整、過時或品質不佳，將導致檢索結果不精確，進而影響最終回答的正確性。</li>
+</ol>
+<p>因此，建議使用者將系統回答作為<strong>參考輔助</strong>，對於關鍵決策仍應進行人工驗證。</p>
+</blockquote>
+<h3 id="技術選型">1.4 技術選型</h3>
+<p>本專案採用 Microsoft GPT-RAG 解決方案加速器，基於以下技術：</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>層級</th>
+<th>技術</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AI 框架</strong></td>
+<td>Azure AI Foundry Agent Service (azure-ai-agents&gt;=1.2.0b4)</td>
+</tr>
+<tr>
+<td><strong>LLM 模型</strong></td>
+<td>GPT-5.2 (GlobalStandard)</td>
+</tr>
+<tr>
+<td><strong>向量搜尋</strong></td>
+<td>Azure AI Search (azure-search-documents 11.5~11.7)</td>
+</tr>
+<tr>
+<td><strong>Embedding</strong></td>
+<td>text-embedding-3-large</td>
+</tr>
+<tr>
+<td><strong>後端框架</strong></td>
+<td>FastAPI 0.115+ / Uvicorn 0.34+ / Python 3.12</td>
+</tr>
+<tr>
+<td><strong>前端框架</strong></td>
+<td>Chainlit 2.6.0</td>
+</tr>
+<tr>
+<td><strong>AI 擴展</strong></td>
+<td>Semantic Kernel 1.34+ (含 MCP 支援)</td>
+</tr>
+<tr>
+<td><strong>容器運行</strong></td>
+<td>Azure Container Apps (Consumption)</td>
+</tr>
+<tr>
+<td><strong>IaC 工具</strong></td>
+<td>Bicep + Azure Developer CLI (azd 1.22+)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="系統架構">2. 系統架構</h2>
+<h3 id="高層架構圖">2.1 高層架構圖</h3>
+<figure>
+<img src="../assets/architecture-overview.png" alt="高層架構圖" />
+<figcaption aria-hidden="true">高層架構圖</figcaption>
+</figure>
+<h3 id="azure-資源清單">2.2 Azure 資源清單</h3>
+<table>
+<colgroup>
+<col style="width: 26%" />
+<col style="width: 26%" />
+<col style="width: 29%" />
+<col style="width: 17%" />
+</colgroup>
+<thead>
+<tr>
+<th>資源類型</th>
+<th>命名規則</th>
+<th>SKU/層級</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AI Foundry</strong></td>
+<td><code>aif-{token}-GPRAG</code></td>
+<td>Standard</td>
+<td>AI 模型管理平台</td>
+</tr>
+<tr>
+<td><strong>Azure OpenAI</strong></td>
+<td>(AI Foundry 內建)</td>
+<td>GlobalStandard</td>
+<td>LLM 推理</td>
+</tr>
+<tr>
+<td><strong>Azure AI Search</strong></td>
+<td><code>srch-{token}-GPRAG</code></td>
+<td>Basic</td>
+<td>向量與混合搜尋</td>
+</tr>
+<tr>
+<td><strong>Cosmos DB</strong></td>
+<td><code>cosmos-{token}-GPRAG</code></td>
+<td>Serverless</td>
+<td>對話歷史儲存</td>
+</tr>
+<tr>
+<td><strong>Container Apps</strong></td>
+<td><code>ca-{token}-*-GPRAG</code></td>
+<td>Consumption</td>
+<td>微服務運行</td>
+</tr>
+<tr>
+<td><strong>Container Apps Env</strong></td>
+<td><code>cae-{token}-GPRAG</code></td>
+<td>-</td>
+<td>共用環境</td>
+</tr>
+<tr>
+<td><strong>Container Registry</strong></td>
+<td><code>cr{token}GPRAG</code></td>
+<td>Standard</td>
+<td>Docker 映像</td>
+</tr>
+<tr>
+<td><strong>Storage Account</strong></td>
+<td><code>st{token}GPRAG</code></td>
+<td>Standard LRS</td>
+<td>文檔儲存</td>
+</tr>
+<tr>
+<td><strong>App Configuration</strong></td>
+<td><code>appcs-{token}-GPRAG</code></td>
+<td>Standard</td>
+<td>集中配置</td>
+</tr>
+<tr>
+<td><strong>Key Vault</strong></td>
+<td><code>kv-{token}-GPRAG</code></td>
+<td>Standard</td>
+<td>密鑰管理</td>
+</tr>
+<tr>
+<td><strong>Log Analytics</strong></td>
+<td><code>log-{token}-GPRAG</code></td>
+<td>Pay-as-you-go</td>
+<td>日誌收集</td>
+</tr>
+<tr>
+<td><strong>Application Insights</strong></td>
+<td><code>appi-{token}-GPRAG</code></td>
+<td>Pay-as-you-go</td>
+<td>應用監控</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Token 說明</strong>: <code>{token}</code> 是由 azd
+自動產生的唯一識別碼，例如 <code>2v3lfktkn4xam</code></p>
+</blockquote>
+<h3 id="container-apps-服務">2.3 Container Apps 服務</h3>
+<table>
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 47%" />
+<col style="width: 15%" />
+<col style="width: 22%" />
+</colgroup>
+<thead>
+<tr>
+<th>服務</th>
+<th>Container App 名稱</th>
+<th>功能</th>
+<th>Ingress</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Frontend</strong></td>
+<td><code>ca-{token}-frontend-GPRAG</code></td>
+<td>Chainlit 聊天介面</td>
+<td>External</td>
+</tr>
+<tr>
+<td><strong>Orchestrator</strong></td>
+<td><code>ca-{token}-orch-GPRAG</code></td>
+<td>RAG 核心引擎</td>
+<td>Internal</td>
+</tr>
+<tr>
+<td><strong>DataIngest</strong></td>
+<td><code>ca-ingest-GPRAG</code></td>
+<td>文件處理與索引</td>
+<td>Internal</td>
+</tr>
+<tr>
+<td><strong>MCP</strong></td>
+<td><code>ca-{token}-mcp-GPRAG</code></td>
+<td>工具擴充 (選用)</td>
+<td>Internal</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ai-模型部署">2.4 AI 模型部署</h3>
+<table>
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 24%" />
+<col style="width: 13%" />
+<col style="width: 29%" />
+<col style="width: 16%" />
+</colgroup>
+<thead>
+<tr>
+<th>模型</th>
+<th>部署名稱</th>
+<th>SKU</th>
+<th>容量 (TPM)</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>GPT-5.2</strong></td>
+<td><code>chat</code></td>
+<td>GlobalStandard</td>
+<td>80K</td>
+<td>對話生成</td>
+</tr>
+<tr>
+<td><strong>text-embedding-3-large</strong></td>
+<td><code>text-embedding</code></td>
+<td>Standard</td>
+<td>40K</td>
+<td>向量嵌入</td>
+</tr>
+</tbody>
+</table>
+<h3 id="資料流程">2.5 資料流程</h3>
+<h4 id="查詢處理流程">查詢處理流程</h4>
+<pre><code>1. 使用者在 Chainlit 介面輸入問題
+          ↓
+2. Frontend 發送 HTTP POST 到 Orchestrator (SSE 串流)
+          ↓
+3. Orchestrator 從 Cosmos DB 載入對話歷史
+          ↓
+4. Orchestrator 呼叫 Azure AI Foundry Agent Service
+          ↓
+5. Agent 決定呼叫 search_knowledge_base 工具
+          ↓
+6. AI Search 執行向量相似度搜尋，返回相關文件片段
+          ↓
+7. LLM (GPT-5.2) 根據檢索結果生成回應
+          ↓
+8. 回應透過 SSE 串流傳回 Frontend
+          ↓
+9. 對話儲存到 Cosmos DB</code></pre>
+<p><strong>API Flow</strong>:</p>
+<pre><code>┌─────────────┐      POST /orchestrator (SSE)      ┌───────────────┐
+│  Frontend   │ ──────────────────────────────────► │  Orchestrator │
+│ (Chainlit)  │ ◄────────────────────────────────── │   (FastAPI)   │
+└─────────────┘      SSE Stream (text/event-stream) └───────────────┘
+                                                            │
+                     ┌──────────────────────────────────────┼──────────────────┐
+                     │                                      │                  │
+                     ▼                                      ▼                  ▼
+              ┌────────────┐                      ┌──────────────┐    ┌─────────────┐
+              │ Cosmos DB  │                      │ AI Foundry   │    │  AI Search  │
+              │  (History) │                      │ Agent Service│    │   (RAG)     │
+              └────────────┘                      └──────────────┘    └─────────────┘</code></pre>
+<p><strong>查詢處理 Function 呼叫鏈</strong>:</p>
+<p>以下描述每個 Function
+被誰呼叫、輸入什麼、內部再呼叫誰、輸出什麼：</p>
+<hr />
+<p><strong>① <code>app.handle_message()</code></strong> —
+使用者訊息進入點</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-ui/app.py</code> (Chainlit <code>@cl.on_message</code>
+handler)</td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td>Chainlit 框架 (使用者在聊天介面送出訊息時自動觸發)</td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>cl.Message</code> 物件，包含 <code>message.content</code>
+(使用者問題)、<code>message.id</code></td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. 取得
+<code>conversation_id</code>、<code>auth_info</code>、<code>debug_mode</code>、<code>search_index</code>
+等 session 參數<br>2. 呼叫 <strong>②
+<code>call_orchestrator_stream()</code></strong></td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td>SSE 串流回應，逐 chunk 透過 <code>response_msg.stream_token()</code>
+顯示在 Chainlit UI</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>② <code>call_orchestrator_stream()</code></strong> — Frontend
+→ Orchestrator HTTP Client</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-ui/orchestrator_client.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td><code>app.handle_message()</code></td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>conversation_id</code>, <code>question</code> (str),
+<code>auth_info</code> (dict), <code>question_id</code>,
+<code>debug_mode</code>, <code>search_index</code></td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. 讀取 <code>ORCHESTRATOR_BASE_URL</code> 或組合 Dapr sidecar
+URL<br>2. 組裝 HTTP headers (<code>X-API-KEY</code> /
+<code>dapr-api-token</code>)<br>3. 組裝 JSON payload:
+<code>{ask, question, conversation_id, client_principal_id, client_principal_name, debug_mode, search_index, ...}</code><br>4.
+使用 <code>httpx.AsyncClient.stream("POST", url, json=payload)</code>
+發送請求<br>5. 呼叫 <strong>③
+<code>POST /orchestrator</code></strong></td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td><code>AsyncIterator[str]</code> — SSE 文字串流 (每個 chunk yield
+回給呼叫者)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>③ <code>orchestrator_endpoint()</code></strong> — FastAPI
+Endpoint</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-orchestrator/src/main.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td><code>call_orchestrator_stream()</code> 透過 HTTP POST</td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>OrchestratorRequest</code> (Pydantic model，定義在
+<code>schemas.py</code>)：<br>- <code>ask</code> (str, 必填) —
+使用者問題<br>- <code>conversation_id</code> (str, 選填) — 對話 ID<br>-
+<code>debug_mode</code> (bool, 選填) — 啟用 debug<br>-
+<code>search_index</code> (str, 選填) — 指定 AI Search 索引<br>-
+<code>type</code> (str, 選填) — <code>"feedback"</code>
+則走回饋路徑<br>- <code>question_id</code>,
+<code>client_principal_id</code>, <code>client_principal_name</code>,
+<code>client_group_names</code>, <code>access_token</code>,
+<code>user_context</code> 等</td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. 驗證認證 (<code>validate_auth</code> dependency, 檢查
+<code>X-API-KEY</code> 或 <code>dapr-api-token</code>)<br>2. 若
+<code>type == "feedback"</code> → 呼叫
+<code>orchestrator.save_feedback()</code> 後直接回傳<br>3. 否則呼叫
+<strong>④ <code>Orchestrator.create()</code></strong> 建立實例<br>4.
+呼叫 <strong>⑤ <code>orchestrator.stream_response(ask)</code></strong>
+取得回應串流<br>5. 包裝為
+<code>StreamingResponse(media_type="text/event-stream")</code></td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td><code>StreamingResponse</code> — SSE 串流，包含
+<code>conversation_id</code> + 回應文字 + debug events</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>④ <code>Orchestrator.create()</code></strong> — 建立
+Orchestrator 實例</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-orchestrator/src/orchestration/orchestrator.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td><code>orchestrator_endpoint()</code></td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>conversation_id</code>, <code>user_context</code> (dict),
+<code>debug_mode</code> (bool), <code>search_index</code> (str)</td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. 初始化 <code>CosmosDBClient</code> (對話歷史存取)<br>2. 從 App
+Configuration 讀取 <code>AGENT_STRATEGY</code> (預設
+<code>"single_agent_rag"</code>)<br>3. 呼叫
+<code>AgentStrategyFactory.get_strategy(name)</code> → 得到 Strategy
+實例<br>4. 將 <code>debug_mode</code>、<code>search_index</code> 設定到
+Strategy 上</td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td><code>Orchestrator</code> 實例 (含已初始化的
+<code>agentic_strategy</code>)</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>AgentStrategyFactory.get_strategy()</code></strong>
+對照表 (定義在 <code>strategies/agent_strategy_factory.py</code>)：</p>
+<table>
+<colgroup>
+<col style="width: 22%" />
+<col style="width: 50%" />
+<col style="width: 27%" />
+</colgroup>
+<thead>
+<tr>
+<th>Key</th>
+<th>對應 Class</th>
+<th>檔案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>single_agent_rag</code></td>
+<td><code>SingleAgentRAGStrategyV1</code></td>
+<td><code>strategies/single_agent_rag_strategy_v1.py</code></td>
+</tr>
+<tr>
+<td><code>mcp</code></td>
+<td><code>McpStrategy</code></td>
+<td><code>strategies/mcp_strategy.py</code></td>
+</tr>
+<tr>
+<td><code>nl2sql</code></td>
+<td><code>NL2SQLStrategy</code></td>
+<td><code>strategies/nl2sql_strategy.py</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>⑤ <code>Orchestrator.stream_response(ask)</code></strong> —
+核心協調流程</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-orchestrator/src/orchestration/orchestrator.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td><code>orchestrator_endpoint()</code> (在 SSE generator 中)</td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>ask</code> (str 使用者問題), <code>question_id</code> (str,
+選填)</td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. 從 Cosmos DB 載入或建立 conversation document<br>2. 記錄
+question_id 到 conversation<br>3. 將 conversation 傳給 strategy<br>4.
+呼叫 <strong>⑥ <code>strategy.initiate_agent_flow(ask)</code></strong>
+取得回應串流<br>5. 完成後更新 conversation document 至 Cosmos DB</td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td><code>AsyncIterator[str]</code> — 先 yield
+<code>{conversation_id}</code>，再 yield 所有 strategy 回應 chunk</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>⑥
+<code>SingleAgentRAGStrategyV1.initiate_agent_flow(ask)</code></strong>
+— Agent 執行流程</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-orchestrator/src/strategies/single_agent_rag_strategy_v1.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td><code>Orchestrator.stream_response()</code></td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>user_message</code> (str 使用者問題)</td>
+</tr>
+<tr>
+<td><strong>內部處理 (依序)</strong></td>
+<td><strong>Step 1</strong>: <code>_get_or_create_thread()</code> —
+建立或取回 AI Foundry Agent Thread<br><strong>Step 2</strong>:
+<code>_get_or_create_agent()</code> — 建立 Agent (含 system prompt,
+tools 定義)<br><strong>Step 3</strong>:
+<code>_send_user_message()</code> — 將 user_message 送入
+Thread<br><strong>Step 4</strong>: <code>_stream_agent_response()</code>
+→ 呼叫 <strong>⑦ Agent Run Stream</strong><br><strong>Step 5</strong>:
+<code>_consolidate_conversation_history()</code> — 從 Thread
+取回完整對話歷史<br><strong>Step 6</strong>:
+<code>_cleanup_agent()</code> — 刪除暫時 Agent</td>
+</tr>
+<tr>
+<td><strong>內部 Tools</strong></td>
+<td>Agent 初始化時註冊的 FunctionTools：<br>- <strong>⑧
+<code>SearchClient.search_knowledge_base(query)</code></strong> — RAG
+知識庫搜尋<br>- <strong>⑨
+<code>CallTranscriptClient.query_call_transcripts(...)</code></strong> —
+通話記錄查詢 (若啟用)<br>- <code>BingGroundingTool</code> — Bing 搜尋
+(若啟用)</td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td><code>AsyncIterator[str]</code> — Agent 回應文字 chunk + debug
+events (若 debug mode)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>⑦ <code>_stream_agent_response()</code></strong> — Agent Run
+串流</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-orchestrator/src/strategies/single_agent_rag_strategy_v1.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td><code>initiate_agent_flow()</code> Step 4</td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>project_client</code>, <code>agent_id</code>,
+<code>thread_id</code>, <code>user_message</code></td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. 呼叫
+<code>project_client.agents.runs.stream(thread_id, agent_id)</code> 啟動
+Agent Run<br>2. LLM 第一次思考 → 決定需要呼叫哪些 Tools<br>3.
+Auto-execute registered Tools (<strong>⑧</strong> 或 <strong>⑨</strong>)
+— SDK 自動執行<br>4. LLM 第二次思考 → 基於 Tool 結果生成最終回應<br>5.
+處理 <code>thread.message.delta</code> 事件，逐 chunk yield
+回應文字</td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td><code>AsyncIterator[str]</code> — 回應文字 chunk (含引用處理)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>⑧
+<code>SearchClient.search_knowledge_base(query)</code></strong> — RAG
+知識庫搜尋</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-orchestrator/src/connectors/search.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td>AI Foundry Agent SDK auto-execute (當 Agent
+決定需要搜尋知識庫時)</td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>query</code> (str) — Agent 產生的搜尋查詢</td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. 依 <code>search_approach</code> (hybrid/vector/term) 組裝搜尋
+body<br>2. 若 vector/hybrid → 呼叫 Azure OpenAI
+<code>get_embeddings(query)</code> 產生向量<br>3. 呼叫 Azure AI Search
+REST API 執行搜尋<br>4. 解析結果取 <code>title</code>,
+<code>content</code>, <code>url</code>, <code>filepath</code></td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td>JSON string — <code>[{title, link, content}, ...]</code>
+搜尋結果列表</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>⑨
+<code>CallTranscriptClient.query_call_transcripts(...)</code></strong> —
+通話記錄查詢</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-orchestrator/src/connectors/call_transcripts.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td>AI Foundry Agent SDK auto-execute (當 Agent
+決定需要查詢通話記錄時)</td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>customer_id</code> (str, 選填), <code>status</code> (str,
+選填: “成功”/“失敗”), <code>call_date</code> (str, 選填: “YYYY-MM-DD”),
+<code>keyword</code> (str, 選填), <code>top</code> (int, 預設 10),
+<code>include_full_transcript</code> (str, 預設 “false”)</td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. 動態組裝 Cosmos DB SQL 查詢 (WHERE 條件)<br>2. 透過
+<code>CosmosClient</code> 查詢 <code>call-transcripts</code>
+container<br>3. 格式化結果 (截斷 transcript 至前 300 字元，除非
+<code>include_full_transcript=true</code>)</td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td>JSON string — 包含符合條件的通話記錄列表</td>
+</tr>
+</tbody>
+</table>
+<h4 id="文件-ingestion-流程">文件 Ingestion 流程</h4>
+<pre><code>1. 使用者上傳文件到 Blob Storage (documents container)
+          ↓
+2. Ingestion Service 依 CRON 排程觸發
+          ↓
+3. 讀取文件並依類型選擇 Chunker
+   ├── PDF/DOCX/PPTX → Document Intelligence
+   ├── XLSX → SpreadsheetChunker
+   └── 其他 → LangChain Chunker
+          ↓
+4. 文件切分成 Chunks (預設 2048 tokens)
+          ↓
+5. Azure OpenAI 生成向量嵌入 (text-embedding-3-large)
+          ↓
+6. Chunks + Vectors 上傳到 Azure AI Search
+          ↓
+7. 寫入 Job 執行記錄</code></pre>
+<p><strong>API Flow</strong>:</p>
+<pre><code>┌─────────────┐     Upload file      ┌──────────────┐
+│    User     │ ────────────────────► │ Blob Storage │
+└─────────────┘                       │ (documents)  │
+                                      └──────────────┘
+                                             │
+                                             │ CRON Trigger
+                                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Ingestion Service                           │
+│  ┌───────────────┐    ┌─────────────┐    ┌──────────────────┐   │
+│  │ Read Document │ ─► │   Chunker   │ ─► │ Generate Embedding│  │
+│  │ (Blob Client) │    │  (Factory)  │    │ (Azure OpenAI)    │  │
+│  └───────────────┘    └─────────────┘    └──────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                                             │
+                                             │ Upload Index
+                                             ▼
+                                      ┌──────────────┐
+                                      │  AI Search   │
+                                      │   (Index)    │
+                                      └──────────────┘</code></pre>
+<p><strong>Ingestion Function 呼叫鏈</strong> (CRON 排程路徑):</p>
+<p>以下描述 Blob 索引排程 (最主要路徑) 中每個 Function 的呼叫關係：</p>
+<hr />
+<p><strong>❶ <code>lifespan()</code> → Scheduler 啟動</strong> —
+應用程式啟動入口</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-ingestion/main.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td>FastAPI 框架 (應用程式啟動時自動執行)</td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td>無 (讀取 App Configuration 中的 CRON 設定)</td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. 驗證 Azure 認證 (Managed Identity / Service Principal / az
+login)<br>2. 初始化 App Configuration Client<br>3. 讀取各
+<code>CRON_RUN_*</code> 設定，透過 APScheduler <code>CronTrigger</code>
+註冊排程<br>4. 啟動時立即執行一次已排程的 Jobs (如 <strong>❷
+<code>run_blob_index()</code></strong>)</td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td>無 (排程在背景持續運行)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>排程 Job 對應表</strong>：</p>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 40%" />
+<col style="width: 31%" />
+</colgroup>
+<thead>
+<tr>
+<th>CRON Key</th>
+<th>呼叫 Function</th>
+<th>對應 Class</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CRON_RUN_BLOB_INDEX</code></td>
+<td><code>run_blob_index()</code></td>
+<td><code>BlobStorageDocumentIndexer</code></td>
+</tr>
+<tr>
+<td><code>CRON_RUN_BLOB_PURGE</code></td>
+<td><code>run_blob_purge()</code></td>
+<td><code>BlobStorageDeletedItemsCleaner</code></td>
+</tr>
+<tr>
+<td><code>CRON_RUN_SHAREPOINT_INDEX</code></td>
+<td><code>run_sharepoint_index()</code></td>
+<td><code>SharePointIndexer</code></td>
+</tr>
+<tr>
+<td><code>CRON_RUN_NL2SQL_INDEX</code></td>
+<td><code>run_nl2sql_index()</code></td>
+<td><code>NL2SQLIndexer</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>❷ <code>run_blob_index()</code></strong> — Blob
+索引排程觸發點</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-ingestion/main.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td>APScheduler CRON 觸發 或 lifespan 啟動時立即呼叫</td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td>無</td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>實例化 <code>BlobStorageDocumentIndexer()</code> 並呼叫 <strong>❸
+<code>.run()</code></strong></td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td>無 (執行結果記錄在 Blob Storage logs)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>❸ <code>BlobStorageDocumentIndexer.run()</code></strong> —
+Blob 索引核心邏輯</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-ingestion/jobs/blob_storage_indexer.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td><code>run_blob_index()</code></td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>BlobIndexerConfig</code> (從 App Configuration
+讀取)：<code>storage_account_name</code>, <code>source_container</code>,
+<code>search_endpoint</code>, <code>search_index_name</code>,
+<code>max_concurrency</code> 等</td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. <code>_ensure_clients()</code> — 建立
+<code>BlobServiceClient</code> + <code>AsyncSearchClient</code><br>2.
+<code>_load_latest_index_state()</code> — 從 AI Search 載入現有文件的
+<code>last_modified</code> map<br>3. 列舉 Blob Storage container
+中所有文件<br>4. 比對 <code>blob.last_modified</code> &gt;
+<code>prev_last_modified</code> → 篩出需重新索引的文件<br>5. 並行呼叫
+<strong>❹ <code>_process_one()</code></strong> 處理每個文件 (受
+<code>max_concurrency</code> 限制)<br>6. 寫入 run summary 至 Blob
+Storage jobs log container</td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td>Summary dict:
+<code>{sourceFiles, candidates, indexedItems, success, failed, totalChunksUploaded}</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>❹
+<code>_process_one(blob_name, last_modified, content_type)</code></strong>
+— 單一文件處理</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-ingestion/jobs/blob_storage_indexer.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td><code>BlobStorageDocumentIndexer.run()</code> (並行呼叫)</td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>blob_name</code> (str), <code>last_modified</code> (datetime),
+<code>content_type</code> (str), <code>run_id</code> (str)</td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. 從 Blob Storage 下載文件 bytes
+(<code>blob_client.download_blob()</code>)<br>2. 讀取 blob metadata 中的
+<code>security_ids</code> (文件權限控制)<br>3. 組裝
+<code>data = {documentUrl, documentContentType, documentBytes, fileName}</code><br>4.
+呼叫 <strong>❺
+<code>DocumentChunker().chunk_documents(data)</code></strong>
+進行文件切分<br>5. 將 chunks 轉換為 AI Search documents
+(<code>_to_search_doc()</code>)<br>6. 呼叫
+<code>_replace_parent_docs()</code> — 刪除舊 chunks 後上傳新 chunks 至
+AI Search<br>7. 寫入 per-file log</td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td><code>{status: "success", chunks: N}</code> 或
+<code>{status: "error", error: "..."}</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>❺ <code>DocumentChunker.chunk_documents(data)</code></strong>
+— 文件切分入口</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-ingestion/chunking/document_chunking.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td><code>_process_one()</code> 或 <code>/document-chunking</code> HTTP
+endpoint</td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>data</code> (dict):
+<code>{documentUrl, documentContentType, documentBytes, fileName}</code></td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. 呼叫 <strong>❻
+<code>ChunkerFactory().get_chunker(data)</code></strong> 取得對應的
+Chunker<br>2. 呼叫 <code>chunker.get_chunks()</code> 執行實際切分</td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td><code>(chunks, errors, warnings)</code> — chunks 為 dict
+list，每個含 <code>content</code>, <code>title</code>, <code>url</code>
+等</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>❻ <code>ChunkerFactory.get_chunker(data)</code></strong> —
+Chunker 工廠</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-ingestion/chunking/chunker_factory.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td><code>DocumentChunker.chunk_documents()</code></td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td><code>data</code> (dict) — 包含 <code>fileName</code>
+用以判斷副檔名</td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>依檔案副檔名選擇 Chunker 實例</td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td>對應的 Chunker 實例</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Chunker 對照表</strong>：</p>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 50%" />
+<col style="width: 21%" />
+</colgroup>
+<thead>
+<tr>
+<th>副檔名</th>
+<th>Chunker Class</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pdf</code>, <code>png</code>, <code>jpeg</code>,
+<code>jpg</code>, <code>bmp</code>, <code>tiff</code></td>
+<td><code>DocAnalysisChunker</code></td>
+<td>透過 Document Intelligence 分析</td>
+</tr>
+<tr>
+<td><code>docx</code>, <code>pptx</code></td>
+<td><code>DocAnalysisChunker</code></td>
+<td>需 Doc Intelligence 4.0 API</td>
+</tr>
+<tr>
+<td><code>xlsx</code>, <code>xls</code></td>
+<td><code>SpreadsheetChunker</code></td>
+<td>試算表切分</td>
+</tr>
+<tr>
+<td><code>vtt</code></td>
+<td><code>TranscriptionChunker</code></td>
+<td>字幕/逐字稿</td>
+</tr>
+<tr>
+<td><code>json</code></td>
+<td><code>JSONChunker</code></td>
+<td>JSON 資料切分</td>
+</tr>
+<tr>
+<td><code>nl2sql</code></td>
+<td><code>NL2SQLChunker</code></td>
+<td>NL2SQL schema 切分</td>
+</tr>
+<tr>
+<td>其他 (<code>txt</code>, <code>md</code> 等)</td>
+<td><code>LangChainChunker</code></td>
+<td>LangChain 通用文字切分</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>若 <code>MULTIMODAL=true</code>，PDF/圖片/DOCX/PPTX 會改用
+<code>MultimodalChunker</code>。</p>
+</blockquote>
+<hr />
+<p><strong>Ingestion HTTP Endpoints 呼叫鏈</strong> (手動觸發路徑):</p>
+<p>除了 CRON 排程，也可透過 HTTP API 手動觸發：</p>
+<p><strong>❼ <code>POST /document-chunking</code></strong> —
+手動文件切分</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-ingestion/main.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td>Azure AI Search Skillset 或手動 HTTP 呼叫</td>
+</tr>
+<tr>
+<td><strong>認證</strong></td>
+<td>API Key (<code>validate_api_key_header</code>)</td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td>JSON Body:
+<code>{"values": [{"recordId": "1", "data": {"documentUrl": "https://...", "documentContentType": "application/pdf"}}]}</code></td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. JSON Schema 驗證<br>2. 透過 <code>BlobClient</code> 下載文件
+bytes<br>3. 呼叫 <strong>❺
+<code>DocumentChunker().chunk_documents(data)</code></strong><br>4.
+組裝回應</td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td>JSON:
+<code>{"values": [{"recordId": "1", "data": {"chunks": [...]}, "errors": [], "warnings": []}]}</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>❽ <code>POST /text-embedding</code></strong> —
+手動向量嵌入</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>項目</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案</strong></td>
+<td><code>gpt-rag-ingestion/main.py</code></td>
+</tr>
+<tr>
+<td><strong>呼叫者</strong></td>
+<td>Azure AI Search Skillset 或手動 HTTP 呼叫</td>
+</tr>
+<tr>
+<td><strong>認證</strong></td>
+<td>API Key (<code>validate_api_key_header</code>)</td>
+</tr>
+<tr>
+<td><strong>輸入</strong></td>
+<td>JSON Body:
+<code>{"values": [{"recordId": "1", "data": {"text": "要嵌入的文字"}}]}</code></td>
+</tr>
+<tr>
+<td><strong>內部處理</strong></td>
+<td>1. 實例化 <code>AzureOpenAIClient()</code><br>2. 對每個 item 呼叫
+<code>aoai_client.get_embeddings(text)</code> (Azure OpenAI
+text-embedding-3-large)<br>3. 組裝回應</td>
+</tr>
+<tr>
+<td><strong>輸出</strong></td>
+<td>JSON:
+<code>{"values": [{"recordId": "1", "data": {"embedding": [0.012, -0.034, ...]}, "errors": [], "warnings": []}]}</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="部署指南">3. 部署指南</h2>
+<h3 id="先決條件">3.1 先決條件</h3>
+<h4 id="工具安裝">工具安裝</h4>
+<table>
+<colgroup>
+<col style="width: 27%" />
+<col style="width: 27%" />
+<col style="width: 45%" />
+</colgroup>
+<thead>
+<tr>
+<th>工具</th>
+<th>版本</th>
+<th>安裝指令</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Azure CLI</td>
+<td>2.80+</td>
+<td><code>winget install Microsoft.AzureCLI</code></td>
+</tr>
+<tr>
+<td>Azure Developer CLI</td>
+<td>1.22+</td>
+<td><code>winget install Microsoft.Azd</code></td>
+</tr>
+<tr>
+<td>Docker</td>
+<td>29+</td>
+<td><a href="https://www.docker.com/products/docker-desktop/">Docker
+Desktop</a></td>
+</tr>
+<tr>
+<td>Python</td>
+<td>3.12</td>
+<td><code>winget install Python.Python.3.12</code></td>
+</tr>
+<tr>
+<td>Git</td>
+<td>最新</td>
+<td><code>winget install Git.Git</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="azure-權限">Azure 權限</h4>
+<ul>
+<li>訂閱層級 <strong>Owner</strong> 或 <strong>Contributor + User Access
+Administrator</strong></li>
+<li>需註冊以下 Resource Provider：
+<ul>
+<li><code>Microsoft.AppConfiguration</code></li>
+<li><code>Microsoft.DocumentDB</code></li>
+<li><code>Microsoft.ContainerService</code></li>
+<li><code>Microsoft.CognitiveServices</code></li>
+</ul></li>
+</ul>
+<h3 id="部署步驟">3.2 部署步驟</h3>
+<h4 id="step-1-登入-azure">Step 1: 登入 Azure</h4>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 登入指定租戶</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>az login <span class="op">--</span>tenant <span class="op">{</span>tenant-id<span class="op">}</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 設定訂閱</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>az account <span class="fu">set</span> <span class="op">--</span>subscription <span class="st">&quot;{subscription-name}&quot;</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 驗證權限</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>az role assignment list <span class="op">--</span>assignee <span class="op">$(</span>az ad signed-in-user show <span class="op">--</span>query id <span class="op">-</span>o tsv<span class="op">)</span> <span class="op">--</span>query <span class="st">&quot;[].roleDefinitionName&quot;</span> <span class="op">-</span>o table</span></code></pre></div>
+<h4 id="step-2-設定-azd-環境">Step 2: 設定 azd 環境</h4>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cd</span> GPT-RAG</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 初始化環境</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>azd init <span class="op">-</span>e <span class="op">{</span>environment-name<span class="op">}</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 設定區域</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>azd env <span class="fu">set</span> AZURE_LOCATION eastus2</span></code></pre></div>
+<h4 id="step-3-佈建基礎設施">Step 3: 佈建基礎設施</h4>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 執行 Bicep 部署</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>azd provision</span></code></pre></div>
+<p>預期結果：約 20-25 個 Azure 資源建立完成</p>
+<h4 id="step-4-部署應用程式">Step 4: 部署應用程式</h4>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 部署所有服務</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>azd deploy</span></code></pre></div>
+<p>如果 <code>azd deploy</code> 失敗，可手動部署：</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 登入 ACR</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>az acr login <span class="op">--</span>name cr<span class="op">{</span>token<span class="op">}</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 建置並推送 Frontend</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="fu">cd</span> <span class="op">../</span>gpt-rag-ui</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="va">$ts</span> <span class="op">=</span> <span class="fu">Get-Date</span> <span class="op">-</span>Format <span class="st">&quot;yyyyMMddHHmmss&quot;</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>docker build <span class="op">-</span>t cr<span class="op">{</span>token<span class="op">}.</span><span class="fu">azurecr</span><span class="op">.</span><span class="fu">io</span><span class="op">/</span>azure-gpt-rag<span class="op">/</span>frontend<span class="op">:</span><span class="va">$ts</span> <span class="op">.</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>docker push cr<span class="op">{</span>token<span class="op">}.</span><span class="fu">azurecr</span><span class="op">.</span><span class="fu">io</span><span class="op">/</span>azure-gpt-rag<span class="op">/</span>frontend<span class="op">:</span><span class="va">$ts</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 更新 Container App</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>az containerapp update <span class="op">--</span>name ca-<span class="op">{</span>token<span class="op">}-</span>frontend <span class="op">--</span>resource-group GPRAG `</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  <span class="op">--</span>image cr<span class="op">{</span>token<span class="op">}.</span><span class="fu">azurecr</span><span class="op">.</span><span class="fu">io</span><span class="op">/</span>azure-gpt-rag<span class="op">/</span>frontend<span class="op">:</span><span class="va">$ts</span></span></code></pre></div>
+<h3 id="部署後驗證">3.3 部署後驗證</h3>
+<h4 id="驗證清單">驗證清單</h4>
+<ul class="task-list">
+<li><label><input type="checkbox" />Container Apps 狀態為
+Running</label></li>
+<li><label><input type="checkbox" />Frontend URL 可正常存取</label></li>
+<li><label><input type="checkbox" />AI Search 索引已建立</label></li>
+<li><label><input type="checkbox" />App Configuration
+參數正確</label></li>
+</ul>
+<h4 id="驗證指令">驗證指令</h4>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 檢查 Container Apps 狀態</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>az containerapp list <span class="op">--</span>resource-group GPRAG <span class="op">--</span>query <span class="st">&quot;[].{name:name, state:properties.runningStatus}&quot;</span> <span class="op">-</span>o table</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 檢查 AI Search 索引</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="va">$searchEndpoint</span> <span class="op">=</span> <span class="st">&quot;https://srch-{token}.search.windows.net&quot;</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="va">$token</span> <span class="op">=</span> az account get-access-token <span class="op">--</span>resource <span class="st">&quot;https://search.azure.com&quot;</span> <span class="op">--</span>query accessToken <span class="op">-</span>o tsv</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="fu">Invoke-RestMethod</span> <span class="op">-</span>Uri <span class="st">&quot;</span><span class="va">$searchEndpoint</span><span class="st">/indexes?api-version=2023-11-01&quot;</span> `</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  <span class="op">-</span>Headers @<span class="op">{</span> <span class="st">&quot;Authorization&quot;</span> <span class="op">=</span> <span class="st">&quot;Bearer </span><span class="va">$token</span><span class="st">&quot;</span> <span class="op">}</span></span></code></pre></div>
+<hr />
+<h2 id="開發指南">4. 開發指南</h2>
+<h3 id="debug-面板功能">4.1 Debug 面板功能</h3>
+<p>Frontend 內建 Debug 面板，可顯示詳細的執行資訊：</p>
+<p><strong>啟用方式</strong>： - 預設為啟用 - 輸入
+<code>/debug off</code> 可關閉 - 輸入 <code>/debug</code> 或
+<code>/debug on</code> 重新啟用</p>
+<p><strong>顯示內容</strong>：</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>面板</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Timing</strong></td>
+<td>各階段執行時間 (Thread/Agent 管理、LLM 思考、工具執行等)</td>
+</tr>
+<tr>
+<td><strong>Prompting Details</strong></td>
+<td>System Prompt、Tool Calls、Search Results、LLM Calls</td>
+</tr>
+</tbody>
+</table>
+<p><strong>UI 佈局</strong>：左右分割 (問答區 55%、Debug Panel 45%)</p>
+<h3 id="agent-策略切換">4.2 Agent 策略切換</h3>
+<p>系統支援三種 Agent 策略：</p>
+<table>
+<colgroup>
+<col style="width: 30%" />
+<col style="width: 40%" />
+<col style="width: 30%" />
+</colgroup>
+<thead>
+<tr>
+<th>策略</th>
+<th>設定值</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Single Agent RAG</strong></td>
+<td><code>single_agent_rag</code></td>
+<td>預設模式，單一 Agent + RAG 工具</td>
+</tr>
+<tr>
+<td><strong>MCP</strong></td>
+<td><code>mcp</code></td>
+<td>Model Context Protocol 擴充工具</td>
+</tr>
+<tr>
+<td><strong>NL2SQL</strong></td>
+<td><code>nl2sql</code></td>
+<td>自然語言轉 SQL 查詢</td>
+</tr>
+</tbody>
+</table>
+<p>切換方式：在 App Configuration 設定 <code>AGENT_STRATEGY</code></p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>az appconfig kv <span class="fu">set</span> <span class="op">--</span>endpoint <span class="st">&quot;https://appcs-{token}.azconfig.io&quot;</span> `</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">--</span>key <span class="st">&quot;AGENT_STRATEGY&quot;</span> <span class="op">--</span>value <span class="st">&quot;single_agent_rag&quot;</span> <span class="op">--</span>label <span class="st">&quot;gpt-rag&quot;</span> <span class="op">--</span>auth-mode login <span class="op">-</span>y</span></code></pre></div>
+<h3 id="設定參數清單">4.3 設定參數清單</h3>
+<h4 id="核心設定">核心設定</h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>說明</th>
+<th>預設值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AGENT_STRATEGY</code></td>
+<td>Agent 策略</td>
+<td><code>single_agent_rag</code></td>
+</tr>
+<tr>
+<td><code>CHAT_DEPLOYMENT_NAME</code></td>
+<td>LLM 部署名稱</td>
+<td><code>chat</code></td>
+</tr>
+<tr>
+<td><code>EMBEDDING_DEPLOYMENT_NAME</code></td>
+<td>Embedding 部署名稱</td>
+<td><code>embedding</code></td>
+</tr>
+<tr>
+<td><code>SEARCH_RAGINDEX_TOP_K</code></td>
+<td>搜尋結果數量</td>
+<td><code>3</code></td>
+</tr>
+<tr>
+<td><code>SEARCH_APPROACH</code></td>
+<td>搜尋方法 (hybrid/vector/term)</td>
+<td><code>hybrid</code></td>
+</tr>
+<tr>
+<td><code>ORCHESTRATOR_URI</code></td>
+<td>Orchestrator 內部 URL</td>
+<td>(自動設定)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="ingestion-設定">Ingestion 設定</h4>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>說明</th>
+<th>預設值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CRON_RUN_BLOB_INDEX</code></td>
+<td>Blob 索引排程</td>
+<td><code>0 */6 * * *</code></td>
+</tr>
+<tr>
+<td><code>CRON_RUN_BLOB_PURGE</code></td>
+<td>Blob 清理排程</td>
+<td><code>0 0 * * *</code></td>
+</tr>
+<tr>
+<td><code>RUN_JOBS_ON_STARTUP</code></td>
+<td>啟動時執行 Job</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>DOCUMENTS_STORAGE_CONTAINER</code></td>
+<td>文件容器名稱</td>
+<td><code>documents</code></td>
+</tr>
+<tr>
+<td><code>SEARCH_RAG_INDEX_NAME</code></td>
+<td>搜尋索引名稱</td>
+<td><code>ragindex-{token}</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="chunking-設定">Chunking 設定</h4>
+<table>
+<colgroup>
+<col style="width: 26%" />
+<col style="width: 31%" />
+<col style="width: 42%" />
+</colgroup>
+<thead>
+<tr>
+<th>Key</th>
+<th>說明</th>
+<th>預設值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CHUNKING_NUM_TOKENS</code></td>
+<td>一般文件 Chunk 大小</td>
+<td><code>2048</code></td>
+</tr>
+<tr>
+<td><code>TOKEN_OVERLAP</code></td>
+<td>Chunk 重疊 tokens</td>
+<td><code>100</code></td>
+</tr>
+<tr>
+<td><code>CHUNKING_MIN_CHUNK_SIZE</code></td>
+<td>最小 Chunk 大小</td>
+<td><code>100</code></td>
+</tr>
+<tr>
+<td><code>SPREADSHEET_CHUNKING_NUM_TOKENS</code></td>
+<td>Excel Chunk 大小</td>
+<td><code>0</code> (無限制) ⚠️</td>
+</tr>
+<tr>
+<td><code>SPREADSHEET_CHUNKING_BY_ROW</code></td>
+<td>按列切分 Excel</td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>注意</strong>:
+<code>SPREADSHEET_CHUNKING_NUM_TOKENS=0</code>
+表示不限制大小，可能產生超大 Chunk (如 31,772 字元)。建議設為
+<code>2048</code>。</p>
+</blockquote>
+<h4 id="chunker-對應表">Chunker 對應表</h4>
+<table>
+<colgroup>
+<col style="width: 52%" />
+<col style="width: 47%" />
+</colgroup>
+<thead>
+<tr>
+<th>檔案類型</th>
+<th>Chunker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.pdf</code>, <code>.docx</code>, <code>.pptx</code>,
+<code>.png</code>, <code>.jpg</code></td>
+<td>DocAnalysisChunker (使用 Document Intelligence)</td>
+</tr>
+<tr>
+<td><code>.xlsx</code>, <code>.xls</code></td>
+<td>SpreadsheetChunker</td>
+</tr>
+<tr>
+<td><code>.json</code></td>
+<td>JSONChunker</td>
+</tr>
+<tr>
+<td><code>.vtt</code></td>
+<td>TranscriptionChunker</td>
+</tr>
+<tr>
+<td><code>.md</code>, <code>.txt</code>, <code>.html</code>,
+<code>.py</code></td>
+<td>LangChainChunker</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="疑難排解">5. 疑難排解</h2>
+<h3 id="常見問題">5.1 常見問題</h3>
+<h4 id="問題-1-frontend-顯示-an-internal-server-error-occurred.">問題 1:
+Frontend 顯示 “An internal server error occurred.”</h4>
+<p><strong>可能原因</strong>: 1. Cosmos DB 防火牆阻擋 2. TPM 配額用完 3.
+Orchestrator 連線失敗</p>
+<p><strong>排查步驟</strong>:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. 檢查 Cosmos DB 網路設定</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>az cosmosdb show <span class="op">--</span>name cosmos-<span class="op">{</span>token<span class="op">}</span> <span class="op">--</span>resource-group GPRAG `</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">--</span>query <span class="st">&quot;publicNetworkAccess&quot;</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. 檢查 Orchestrator 日誌</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>az containerapp logs show <span class="op">--</span>name ca-<span class="op">{</span>token<span class="op">}-</span>orch <span class="op">--</span>resource-group GPRAG <span class="op">--</span>tail <span class="dv">100</span></span></code></pre></div>
+<h4 id="問題-2-ingestion-失敗---authorizationfailure">問題 2: Ingestion
+失敗 - AuthorizationFailure</h4>
+<p><strong>原因</strong>: Storage Account
+<code>publicNetworkAccess</code> 設為 Disabled</p>
+<p><strong>解決</strong>:</p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>az storage account update <span class="op">--</span>name st<span class="op">{</span>token<span class="op">}</span> <span class="op">--</span>resource-group GPRAG `</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">--</span>public-network-access Enabled</span></code></pre></div>
+<h4 id="問題-3-container-app-oom-killed">問題 3: Container App OOM
+Killed</h4>
+<p><strong>症狀</strong>: Container 頻繁重啟，Exit Code 137</p>
+<p><strong>解決</strong>: 增加記憶體配置</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>az containerapp update <span class="op">--</span>name ca-ingest-gprag <span class="op">--</span>resource-group GPRAG `</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="op">--</span>cpu <span class="dv">1.0</span> <span class="op">--</span>memory 2Gi</span></code></pre></div>
+<h4 id="問題-4-回應延遲過長-43-秒">問題 4: 回應延遲過長 (~43 秒)</h4>
+<p><strong>分析</strong>: 這是 Agent 架構的正常現象</p>
+<table>
+<thead>
+<tr>
+<th>階段</th>
+<th>時間</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cosmos DB</td>
+<td>~4s</td>
+<td>載入對話歷史</td>
+</tr>
+<tr>
+<td>Agent 思考</td>
+<td>~7s</td>
+<td>決定呼叫工具</td>
+</tr>
+<tr>
+<td>RAG 檢索</td>
+<td>~1.5s</td>
+<td>搜尋 + Embedding</td>
+</tr>
+<tr>
+<td><strong>LLM 生成</strong></td>
+<td><strong>~27s</strong></td>
+<td>主要瓶頸</td>
+</tr>
+</tbody>
+</table>
+<p><strong>優化建議</strong>: - 使用較小的模型 (如 GPT-4.1 Mini) - 減少
+<code>SEARCH_RAGINDEX_TOP_K</code> - 調整 Chunk 大小 — 降低
+<code>CHUNK_SIZE</code> (如從 2048 降至 1024 tokens)，使每個 chunk
+內容更精簡，減少 LLM 輸入 token 數量，從而加速回應生成 - 簡化 System
+Prompt</p>
+<h3 id="成本及配額說明cost-quota-awareness">5.2 成本及配額說明（Cost
+&amp; Quota Awareness）</h3>
+<p><strong>主要成本來源</strong></p>
+<table>
+<thead>
+<tr>
+<th>元件</th>
+<th>成本驅動因素</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM（GPT-5.2）</td>
+<td>Prompt token + Completion token</td>
+</tr>
+<tr>
+<td>Embedding</td>
+<td>文件 chunk 數量與大小</td>
+</tr>
+<tr>
+<td>AI Search</td>
+<td>Index 大小、查詢次數</td>
+</tr>
+<tr>
+<td>Cosmos DB</td>
+<td>RU/s 使用量</td>
+</tr>
+</tbody>
+</table>
+<p><strong>高成本操作提醒</strong></p>
+<ul>
+<li>Debug Mode 長時間開啟</li>
+<li><code>SEARCH_RAGINDEX_TOP_K</code> 設定過大</li>
+<li>Chunk size 過大導致 LLM 輸入 token 膨脹</li>
+<li>頻繁重新 Ingestion 全量文件</li>
+</ul>
+<p><strong>配額</strong></p>
+<ul>
+<li>當 LLM TPM 配額用盡時：
+<ul>
+<li>API 將回傳 429 / 503 錯誤</li>
+<li>Frontend 可能顯示 Internal Server Error</li>
+</ul></li>
+<li>建議設定 Azure Monitor Alert 監控配額使用率</li>
+</ul>
+<hr />
+<p><em>文件結束</em></p>
+</body>
+</html>
