@@ -12,8 +12,11 @@ Requires:
 import asyncio
 import logging
 import sys
+import os
+import subprocess
+import time
 from azure.cosmos.aio import CosmosClient
-from azure.identity.aio import AzureCliCredential
+from azure.core.credentials import AccessToken
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 # Suppress Azure SDK verbose noise
@@ -25,8 +28,34 @@ logger = logging.getLogger(__name__)
 COSMOS_ENDPOINT = "https://cosmos-2v3lfktkn4xam-gprag.documents.azure.com:443/"
 DATABASE_NAME = "cosmos-db2v3lfktkn4xam-gprag"
 CONTAINER_NAME = "call-transcripts"
-XLSX_PATH = r"C:\Users\v-ktseng\AppData\Local\Temp\call_transcripts.xlsx"
+XLSX_PATH = os.getenv(
+    "CALL_TRANSCRIPTS_XLSX_PATH",
+    r"C:\SynologyDrive\LTIMindtree\Projects\東森\sensengo\SampleData\會員卡推銷名單與通話文本_成功失敗各500人_去敏\會員卡推廣名單通話文本_成功失敗各500人_去敏.xlsx",
+)
 BATCH_SIZE = 50
+
+
+class StaticTokenCredential:
+    """A minimal async token credential backed by one CLI token fetch."""
+
+    def __init__(self, token: str, expires_on: int):
+        self._token = token
+        self._expires_on = expires_on
+
+    async def get_token(self, *scopes, **kwargs):
+        return AccessToken(self._token, self._expires_on)
+
+
+def get_cosmos_aad_token() -> str:
+    result = subprocess.run(
+        "az account get-access-token --resource https://cosmos.azure.com/ --query accessToken -o tsv",
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Failed to get Cosmos AAD token: {result.stderr.strip()}")
+    return result.stdout.strip()
 
 
 def parse_call_date(raw_date) -> str:
@@ -73,7 +102,12 @@ def load_xlsx(path: str) -> list[dict]:
 
 async def import_to_cosmos(documents: list[dict]):
     """Upsert documents into Cosmos DB."""
-    credential = AzureCliCredential()
+    cosmos_key = os.getenv("COSMOS_KEY")
+    if cosmos_key:
+        credential = cosmos_key
+    else:
+        token = get_cosmos_aad_token()
+        credential = StaticTokenCredential(token, int(time.time()) + 3600)
 
     async with CosmosClient(COSMOS_ENDPOINT, credential=credential) as client:
         db = client.get_database_client(DATABASE_NAME)

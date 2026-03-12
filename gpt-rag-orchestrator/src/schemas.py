@@ -1,6 +1,25 @@
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
+
+class SalesRecommendationRequest(BaseModel):
+    """Request body for the /sales/recommendation endpoint."""
+    customer_id: str = Field(
+        ...,
+        description="客戶識別碼 (unikey3 for Persona, or 客代 for Call Log)",
+        example="25045965",
+    )
+    call_customer_id: Optional[str] = Field(
+        None,
+        description="通話紀錄的客代 (若與 customer_id 不同時指定)。不填則與 customer_id 相同。",
+        example="26568707",
+    )
+    model_deployment: Optional[str] = Field(
+        None,
+        description="Azure OpenAI deployment 名稱（選填，預設用 config 設定）",
+        example="gpt-4o",
+    )
+
 class OrchestratorRequest(BaseModel):
     # Core ask/question fields
     ask: Optional[str] = Field(

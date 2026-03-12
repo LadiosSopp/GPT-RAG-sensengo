@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>東森購物 AI 電銷推薦話術 Demo</title>
+<style>
+  :root {
+    --primary: #1a73e8;
+    --primary-dark: #1557b0;
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --text: #202124;
+    --text-secondary: #5f6368;
+    --border: #dadce0;
+    --success: #34a853;
+    --warning: #ea8600;
+    --error: #d93025;
+    --accent: #e8f0fe;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  .header { background: linear-gradient(135deg, var(--primary), #0d47a1); color: white; padding: 24px 32px; }
+  .header h1 { font-size: 22px; font-weight: 600; }
+  .header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+  /* Input Section */
+  .input-section { background: var(--card); border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
+  .input-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .input-group { display: flex; flex-direction: column; gap: 6px; }
+  .input-group label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+  .input-group input { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; width: 220px; outline: none; transition: border-color 0.2s; }
+  .input-group input:focus { border-color: var(--primary); }
+  .btn { padding: 10px 28px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-primary:disabled { background: #94b8e8; cursor: not-allowed; }
+
+  /* Status */
+  .status-bar { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
+  .status-bar.loading { display: flex; align-items: center; gap: 10px; background: var(--accent); color: var(--primary); }
+  .status-bar.error { display: block; background: #fce8e6; color: var(--error); }
+  .status-bar.success { display: block; background: #e6f4ea; color: var(--success); }
+  .spinner { width: 18px; height: 18px; border: 2.5px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; margin-bottom: 0; }
+  .tab { padding: 12px 24px; background: var(--bg); border: 1px solid var(--border); border-bottom: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-secondary); transition: all 0.2s; }
+  .tab.active { background: var(--card); color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--card); margin-bottom: -1px; z-index: 1; }
+  .tab-content { background: var(--card); border: 1px solid var(--border); border-radius: 0 8px 8px 8px; padding: 24px; display: none; min-height: 300px; }
+  .tab-content.active { display: block; }
+
+  /* Recommendation display */
+  .section-title { font-size: 16px; font-weight: 700; color: var(--primary); margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
+  .section-title:first-child { margin-top: 0; }
+  .profile-summary { background: var(--accent); padding: 14px 18px; border-radius: 8px; font-size: 15px; margin-bottom: 16px; }
+  .plan-card { background: #f0f9ff; border: 1px solid #b3d9f7; border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+  .plan-name { font-size: 18px; font-weight: 700; color: #0d47a1; margin-bottom: 6px; }
+  .plan-meta { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 10px; font-size: 14px; color: var(--text-secondary); }
+  .plan-meta span { background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); }
+  .benefits-list { list-style: none; padding: 0; }
+  .benefits-list li { padding: 4px 0 4px 20px; position: relative; font-size: 14px; }
+  .benefits-list li::before { content: '✓'; position: absolute; left: 0; color: var(--success); font-weight: bold; }
+
+  .script-block { margin-bottom: 14px; }
+  .script-label { font-size: 13px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px; }
+  .script-text { background: #fffbf0; border-left: 3px solid var(--warning); padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+
+  .objection-item { background: #fef7f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; }
+  .objection-q { font-weight: 600; color: var(--error); font-size: 14px; }
+  .objection-a { color: var(--text); font-size: 14px; margin-top: 4px; }
+
+  .taboo-list { display: flex; gap: 8px; flex-wrap: wrap; }
+  .taboo-tag { background: #fce8e6; color: var(--error); padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 500; }
+
+  .product-card { background: #f4f8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; border: 1px solid #d4e8c0; }
+  .product-name { font-weight: 700; font-size: 15px; color: #2d6a1e; }
+  .product-reason { font-size: 13px; color: var(--text-secondary); margin: 4px 0; }
+  .product-script { font-size: 14px; font-style: italic; }
+
+  .comm-style { background: var(--accent); padding: 12px 16px; border-radius: 8px; font-size: 14px; }
+  .success-prob { background: #e6f4ea; padding: 12px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--success); }
+
+  /* Debug panel */
+  .debug-overview { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .debug-stat { background: var(--accent); padding: 12px 18px; border-radius: 8px; text-align: center; min-width: 120px; }
+  .debug-stat .value { font-size: 24px; font-weight: 700; color: var(--primary); }
+  .debug-stat .label { font-size: 12px; color: var(--text-secondary); }
+
+  .step-card { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+  .step-header { padding: 12px 16px; background: var(--bg); cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+  .step-header:hover { background: #eef1f5; }
+  .step-name { font-weight: 600; font-size: 14px; }
+  .step-duration { font-size: 13px; color: var(--primary); font-weight: 600; }
+  .step-body { padding: 16px; display: none; border-top: 1px solid var(--border); }
+  .step-body.open { display: block; }
+  .step-io-label { font-size: 12px; font-weight: 700; color: var(--text-secondary); margin: 8px 0 4px; text-transform: uppercase; }
+  .step-io-label:first-child { margin-top: 0; }
+  .step-io-content { background: #f8f9fa; padding: 10px 14px; border-radius: 6px; font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; }
+
+  /* Timeline bar */
+  .timeline-bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; margin-bottom: 20px; }
+  .timeline-segment { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: white; min-width: 30px; }
+  .timeline-segment:nth-child(1) { background: #4285f4; }
+  .timeline-segment:nth-child(2) { background: #34a853; }
+  .timeline-segment:nth-child(3) { background: #fbbc04; color: #333; }
+  .timeline-segment:nth-child(4) { background: #ea4335; }
+  .timeline-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; font-size: 12px; }
+  .timeline-legend span { display: flex; align-items: center; gap: 4px; }
+  .timeline-legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  /* Raw JSON */
+  .raw-json { background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px; font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 600px; overflow-y: auto; }
+
+  @media (max-width: 600px) {
+    .input-row { flex-direction: column; }
+    .input-group input { width: 100%; }
+    .container { padding: 12px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🛒 東森購物 — AI 電銷推薦話術 Demo</h1>
+  <p>輸入客戶 ID，AI 將自動分析客戶 Persona、通話歷史與會員卡權益，生成個人化推薦話術</p>
+</div>
+
+<div class="container">
+  <!-- Input -->
+  <div class="input-section">
+    <div class="input-row">
+      <div class="input-group">
+        <label>客戶 ID (Customer ID)</label>
+        <input type="text" id="customerId" placeholder="例：26568707" value="26568707">
+      </div>
+      <div class="input-group">
+        <label>API Endpoint</label>
+        <input type="text" id="apiEndpoint" style="width:380px" value="">
+      </div>
+      <button class="btn btn-primary" id="btnGenerate" onclick="generate()">生成推薦話術</button>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar" id="statusBar">
+    <div class="spinner" id="statusSpinner"></div>
+    <span id="statusText"></span>
+  </div>
+
+  <!-- Results -->
+  <div id="resultArea" style="display:none">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('recommendation')">📋 推薦話術</div>
+      <div class="tab" onclick="switchTab('debug')">🔧 Debug 資訊</div>
+      <div class="tab" onclick="switchTab('raw')">📄 原始 JSON</div>
+    </div>
+
+    <!-- Tab: Recommendation -->
+    <div class="tab-content active" id="tab-recommendation"></div>
+
+    <!-- Tab: Debug -->
+    <div class="tab-content" id="tab-debug"></div>
+
+    <!-- Tab: Raw JSON -->
+    <div class="tab-content" id="tab-raw"></div>
+  </div>
+</div>
+
+<script>
+const STEP_LABELS = {
+  fetch_persona: '取得客戶 Persona',
+  fetch_call_summary: '取得通話摘要',
+  search_membership_card: '會員卡 RAG 搜尋',
+  gpt_recommendation: 'GPT-5.2 生成推薦',
+};
+const STEP_COLORS = ['#4285f4','#34a853','#fbbc04','#ea4335'];
+
+// Auto-detect endpoint on load
+(function() {
+  const loc = window.location;
+  // If served from the orchestrator itself, use relative path
+  if (loc.pathname.includes('/demo')) {
+    document.getElementById('apiEndpoint').value = loc.origin + '/sales/recommendation';
+  } else {
+    document.getElementById('apiEndpoint').value = loc.origin + '/sales/recommendation';
+  }
+})();
+
+let lastResult = null;
+
+async function generate() {
+  const customerId = document.getElementById('customerId').value.trim();
+  const endpoint = document.getElementById('apiEndpoint').value.trim();
+  if (!customerId) { alert('請輸入客戶 ID'); return; }
+  if (!endpoint) { alert('請輸入 API Endpoint'); return; }
+
+  const btn = document.getElementById('btnGenerate');
+  btn.disabled = true;
+
+  showStatus('loading', `正在為客戶 ${customerId} 生成推薦話術，GPT-5.2 推理模型需要較長時間，請耐心等待...`);
+  document.getElementById('resultArea').style.display = 'none';
+
+  const startTime = Date.now();
+  const timer = setInterval(() => {
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
+    document.getElementById('statusText').textContent =
+      `正在為客戶 ${customerId} 生成推薦話術... (已等待 ${elapsed} 秒)`;
+  }, 1000);
+
+  try {
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'dapr-api-token': 'dev-token',
+      },
+      body: JSON.stringify({ customer_id: customerId }),
+    });
+
+    clearInterval(timer);
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      showStatus('error', `API 錯誤 (${resp.status}): ${errText}`);
+      btn.disabled = false;
+      return;
+    }
+
+    const data = await resp.json();
+    lastResult = data;
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    showStatus('success', `✅ 推薦話術生成完成！前端等待時間: ${elapsed} 秒`);
+
+    renderRecommendation(data);
+    renderDebug(data);
+    renderRaw(data);
+
+    document.getElementById('resultArea').style.display = 'block';
+    switchTab('recommendation');
+  } catch (err) {
+    clearInterval(timer);
+    showStatus('error', `請求失敗: ${err.message}`);
+  }
+
+  btn.disabled = false;
+}
+
+function showStatus(type, msg) {
+  const bar = document.getElementById('statusBar');
+  const spinner = document.getElementById('statusSpinner');
+  const text = document.getElementById('statusText');
+  bar.className = 'status-bar ' + type;
+  spinner.style.display = type === 'loading' ? 'block' : 'none';
+  text.textContent = msg;
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['recommendation','debug','raw'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach((c, i) => {
+    const names = ['recommendation','debug','raw'];
+    c.classList.toggle('active', names[i] === name);
+  });
+}
+
+function esc(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+// ── Render: Recommendation Tab ──────────────────────────────────
+function renderRecommendation(data) {
+  const rec = data.recommendation || {};
+  const el = document.getElementById('tab-recommendation');
+
+  if (rec.error) {
+    el.innerHTML = `<div style="color:var(--error);font-size:16px">❌ ${esc(rec.error)}</div>`;
+    return;
+  }
+  if (rec.raw_response) {
+    el.innerHTML = `<div class="section-title">原始回應（非 JSON）</div><div class="script-text">${esc(rec.raw_response)}</div>`;
+    return;
+  }
+
+  let html = '';
+
+  // Customer Profile Summary
+  if (rec.customer_profile_summary) {
+    html += `<div class="section-title">👤 客戶畫像</div>
+      <div class="profile-summary">${esc(rec.customer_profile_summary)}</div>`;
+  }
+
+  // Recommended Plan
+  const plan = rec.recommended_membership_plan;
+  if (plan) {
+    html += `<div class="section-title">💳 推薦會員卡方案</div>
+      <div class="plan-card">
+        <div class="plan-name">${esc(plan.plan_name)}</div>
+        <div class="plan-meta">
+          <span>💰 ${esc(plan.monthly_cost)}</span>
+          ${plan.competitor_advantage ? `<span>🏆 ${esc(plan.competitor_advantage)}</span>` : ''}
+        </div>
+        <div style="margin-bottom:8px;font-size:14px">${esc(plan.reason)}</div>
+        <ul class="benefits-list">
+          ${(plan.key_benefits||[]).map(b => `<li>${esc(b)}</li>`).join('')}
+        </ul>
+      </div>`;
+  }
+
+  // Sales Script
+  const script = rec.sales_script;
+  if (script) {
+    html += `<div class="section-title">🎤 推薦話術</div>`;
+    const steps = [
+      ['opening', '📢 開場白'],
+      ['needs_discovery', '❓ 探詢需求'],
+      ['product_pitch', '🎯 核心推薦'],
+      ['benefit_highlight', '✨ 利益點強調'],
+      ['closing', '🤝 促成購買'],
+      ['follow_up', '📞 後續追蹤'],
+    ];
+    for (const [k, label] of steps) {
+      if (script[k]) {
+        html += `<div class="script-block">
+          <div class="script-label">${label}</div>
+          <div class="script-text">${esc(script[k])}</div>
+        </div>`;
+      }
+    }
+
+    // Objection handling
+    if (script.objection_handling && script.objection_handling.length) {
+      html += `<div class="section-title">🛡️ 異議處理</div>`;
+      for (const obj of script.objection_handling) {
+        html += `<div class="objection-item">
+          <div class="objection-q">❌ 客戶：${esc(obj.objection)}</div>
+          <div class="objection-a">✅ 回應：${esc(obj.response)}</div>
+        </div>`;
+      }
+    }
+  }
+
+  // Taboos
+  if (rec.taboos && rec.taboos.length) {
+    html += `<div class="section-title">⚠️ 地雷禁忌</div>
+      <div class="taboo-list">${rec.taboos.map(t => `<span class="taboo-tag">🚫 ${esc(t)}</span>`).join('')}</div>`;
+  }
+
+  // Recommended Products
+  if (rec.recommended_products && rec.recommended_products.length) {
+    html += `<div class="section-title">🛍️ 推薦商品</div>`;
+    for (const p of rec.recommended_products) {
+      html += `<div class="product-card">
+        <div class="product-name">${esc(p.name)}</div>
+        <div class="product-reason">${esc(p.reason)}</div>
+        ${p.suggested_script ? `<div class="product-script">"${esc(p.suggested_script)}"</div>` : ''}
+      </div>`;
+    }
+  }
+
+  // Communication Style
+  if (rec.communication_style) {
+    html += `<div class="section-title">💬 溝通風格建議</div>
+      <div class="comm-style">${esc(rec.communication_style)}</div>`;
+  }
+
+  // Success Probability
+  if (rec.success_probability) {
+    html += `<div class="section-title">📊 成交機率</div>
+      <div class="success-prob">${esc(rec.success_probability)}</div>`;
+  }
+
+  el.innerHTML = html || '<p style="color:var(--text-secondary)">無推薦資料</p>';
+}
+
+// ── Render: Debug Tab ───────────────────────────────────────────
+function renderDebug(data) {
+  const debug = data.debug;
+  const el = document.getElementById('tab-debug');
+  if (!debug) { el.innerHTML = '<p>無 Debug 資訊</p>'; return; }
+
+  const steps = debug.steps || [];
+  const total = debug.total_seconds || 0;
+
+  // Overview stats
+  let html = `<div class="debug-overview">
+    <div class="debug-stat"><div class="value">${total}s</div><div class="label">總耗時</div></div>
+    <div class="debug-stat"><div class="value">${steps.length}</div><div class="label">步驟數</div></div>`;
+  const gptStep = steps.find(s => s.name === 'gpt_recommendation');
+  if (gptStep) {
+    html += `<div class="debug-stat"><div class="value">${gptStep.duration_seconds}s</div><div class="label">GPT-5.2 耗時</div></div>`;
+    if (gptStep.output && gptStep.output.usage) {
+      const u = gptStep.output.usage;
+      html += `<div class="debug-stat"><div class="value">${u.total_tokens || '-'}</div><div class="label">Total Tokens</div></div>`;
+      html += `<div class="debug-stat"><div class="value">${u.prompt_tokens || '-'}</div><div class="label">Prompt Tokens</div></div>`;
+      html += `<div class="debug-stat"><div class="value">${u.completion_tokens || '-'}</div><div class="label">Completion Tokens</div></div>`;
+    }
+  }
+  html += '</div>';
+
+  // Timeline bar
+  if (total > 0 && steps.length) {
+    html += '<div class="timeline-legend">';
+    steps.forEach((s, i) => {
+      html += `<span><span class="dot" style="background:${STEP_COLORS[i%4]}"></span>${esc(STEP_LABELS[s.name] || s.name)} (${s.duration_seconds}s)</span>`;
+    });
+    html += '</div><div class="timeline-bar">';
+    steps.forEach((s, i) => {
+      const pct = Math.max((s.duration_seconds / total) * 100, 3);
+      html += `<div class="timeline-segment" style="width:${pct}%;background:${STEP_COLORS[i%4]}">${s.duration_seconds}s</div>`;
+    });
+    html += '</div>';
+  }
+
+  // Step details (expandable)
+  for (const s of steps) {
+    const label = STEP_LABELS[s.name] || s.name;
+    html += `<div class="step-card">
+      <div class="step-header" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span class="step-name">${esc(label)}</span>
+        <span class="step-duration">${s.duration_seconds}s</span>
+      </div>
+      <div class="step-body">
+        <div class="step-io-label">📥 Input</div>
+        <div class="step-io-content">${esc(formatJson(s.input))}</div>
+        <div class="step-io-label">📤 Output</div>
+        <div class="step-io-content">${esc(formatJson(s.output))}</div>
+      </div>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+// ── Render: Raw JSON Tab ────────────────────────────────────────
+function renderRaw(data) {
+  document.getElementById('tab-raw').innerHTML =
+    `<div class="raw-json">${esc(JSON.stringify(data, null, 2))}</div>`;
+}
+
+function formatJson(obj) {
+  if (obj == null) return '(empty)';
+  if (typeof obj === 'string') {
+    // Try to parse as JSON for pretty print
+    try {
+      const parsed = JSON.parse(obj);
+      return JSON.stringify(parsed, null, 2);
+    } catch { return obj; }
+  }
+  return JSON.stringify(obj, null, 2);
+}
+</script>
+</body>
+</html>

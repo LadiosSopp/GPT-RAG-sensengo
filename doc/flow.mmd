@@ -1,0 +1,49 @@
+sequenceDiagram
+    autonumber
+    participant U as User / Demo Page
+    participant O as Orchestrator
+    participant S as SalesRec Workflow
+    participant MCP as MCP Server
+    participant SQL as Azure SQL
+    participant CDB as Cosmos DB
+    participant AIS as AI Search
+    participant MINI as GPT-4o-mini
+    participant GPT as GPT-5.2
+
+    U->>O: POST /sales/recommendation
+    O->>S: generate_recommendation(customer_id)
+
+    rect rgb(232, 245, 233)
+    Note over S,CDB: Step 1 - Fetch Customer Data
+    S->>MCP: query_customer_persona(id)
+    MCP->>SQL: SELECT re_summary_text
+    SQL-->>MCP: Persona text
+    MCP-->>S: persona_text
+
+    S->>MCP: query_call_summary(id)
+    MCP->>CDB: Query call-transcripts
+    CDB-->>MCP: Call summary
+    MCP-->>S: call_summary
+    end
+
+    rect rgb(255, 243, 224)
+    Note over S,AIS: Step 2 - LLM-Driven Dynamic RAG Query
+    S->>MINI: Analyze persona + call_summary
+    Note right of MINI: Generate targeted query
+    MINI-->>S: Membership query (50-150 chars)
+    S->>MCP: search_membership_card(query)
+    MCP->>AIS: Vector search ragindex
+    AIS-->>MCP: Membership card docs
+    MCP-->>S: membership_info
+    end
+
+    rect rgb(252, 228, 236)
+    Note over S,GPT: Step 3 - GPT-5.2 Generate Script
+    S->>S: Assemble prompt (persona + call + membership)
+    S->>GPT: chat.completions.create(gpt-52)
+    Note right of GPT: Reasoning ~30-60s
+    GPT-->>S: Sales recommendation script
+    end
+
+    S-->>O: {recommendation, debug}
+    O-->>U: JSON Response

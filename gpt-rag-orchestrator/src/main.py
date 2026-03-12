@@ -6,7 +6,7 @@ from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException, Depends, Header
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, HTMLResponse
 from pydantic import BaseModel
 
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -16,7 +16,7 @@ from orchestration.orchestrator import Orchestrator
 from connectors.appconfig import AppConfigClient
 from dependencies import get_config, validate_auth
 from telemetry import Telemetry
-from schemas import OrchestratorRequest, ORCHESTRATOR_RESPONSES
+from schemas import OrchestratorRequest, SalesRecommendationRequest, ORCHESTRATOR_RESPONSES
 from constants import APPLICATION_INSIGHTS_CONNECTION_STRING, APP_NAME
 from util.tools import is_azure_environment
 
@@ -155,6 +155,49 @@ async def orchestrator_endpoint(
         sse_event_generator(),
         media_type="text/event-stream"
     )
+
+# ── Sales Recommendation Endpoint ─────────────────────────────────
+
+@app.post(
+    "/sales/recommendation",
+    dependencies=[Depends(validate_auth)],
+    summary="Generate personalised sales recommendation for a customer",
+    response_description="Returns a structured JSON sales recommendation.",
+)
+async def sales_recommendation_endpoint(body: SalesRecommendationRequest):
+    """
+    3-step sequential workflow:
+      Step 1  MCP → SQL Persona + Cosmos Call Summary
+      Step 2  Persona → dynamic query → MCP → AI Search membership card RAG
+      Step 3  GPT-5.2 reasoning model → 推薦話術
+    """
+    from connectors.sales_recommendation import SalesRecommendationClient
+
+    rec_client = SalesRecommendationClient()
+    result = await rec_client.generate_recommendation(
+        customer_id=body.customer_id,
+        call_customer_id=body.call_customer_id,
+        model_deployment=body.model_deployment,
+    )
+
+    return {
+        "customer_id": body.customer_id,
+        "call_customer_id": body.call_customer_id or body.customer_id,
+        "recommendation": result.get("recommendation", result),
+        "debug": result.get("debug"),
+    }
+
+
+# ── Demo page ─────────────────────────────────────────────────────
+
+DEMO_HTML_PATH = Path(__file__).resolve().parent / "static" / "demo.html"
+
+@app.get("/demo", summary="Sales recommendation demo page")
+async def demo_page():
+    """Serve the single-page demo UI for sales recommendation."""
+    html = DEMO_HTML_PATH.read_text(encoding="utf-8")
+    return HTMLResponse(content=html)
+
 
 # Instrumentation
 HTTPXClientInstrumentor().instrument()

@@ -8,4 +8,8 @@ dependencies = [
     "fastapi>=0.121.1",
     "mcp[cli]>=1.21.0",
     "wikipedia>=1.4.0",
+    "pyodbc>=5.1.0",
+    "azure-cosmos>=4.5.1",
+    "azure-identity>=1.15.0",
+    "aiohttp>=3.9.0",
 ]
