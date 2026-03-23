@@ -1,0 +1,86 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "primaryColor": "#E3F2FD",
+    "primaryTextColor": "#1A237E",
+    "primaryBorderColor": "#1565C0",
+    "secondaryColor": "#FFF3E0",
+    "secondaryTextColor": "#E65100",
+    "secondaryBorderColor": "#EF6C00",
+    "tertiaryColor": "#E8F5E9",
+    "tertiaryTextColor": "#1B5E20",
+    "tertiaryBorderColor": "#2E7D32",
+    "lineColor": "#455A64",
+    "fontSize": "14px"
+  }
+}}%%
+
+flowchart TB
+    subgraph TITLE [" "]
+        direction TB
+        T0["<b>現有銷售推薦系統 — 固定 3-Step Pipeline</b><br/><i>/sales/recommendation endpoint</i>"]
+        style T0 fill:none,stroke:none,color:#1A237E,font-size:18px
+    end
+
+    UI["📱 UI / API Client<br/>POST /sales/recommendation<br/>{customer_id, model_deployment}"]
+
+    subgraph ORCH ["Orchestrator — SalesRecommendationClient"]
+        direction TB
+
+        subgraph STEP1 ["Step 1 — 取得客戶資料 (程式碼硬編碼)"]
+            direction LR
+            S1A["fetch_persona<br/>(customer_id)"]
+            S1B["fetch_call_summary<br/>(customer_id)"]
+        end
+
+        subgraph STEP2 ["Step 2 — LLM 生成查詢 + RAG 搜尋 (程式碼硬編碼)"]
+            direction TB
+            S2A["LLM #1 (gpt-5-mini)<br/>分析 Persona + 通話摘要<br/>→ 產生搜尋語句"]
+            S2B["fetch_membership_info<br/>(LLM生成的查詢)"]
+            S2A --> S2B
+        end
+
+        subgraph STEP3 ["Step 3 — 推薦生成 (程式碼硬編碼)"]
+            direction TB
+            S3["LLM #2 (gpt-5.2)<br/>Persona + 通話摘要 + 會員卡資訊<br/>→ 生成推薦話術 JSON"]
+        end
+
+        STEP1 --> STEP2 --> STEP3
+    end
+
+    subgraph MCP_SERVER ["MCP Server (gpt-rag-mcp)"]
+        direction TB
+        T1["🔧 query_customer_persona"]
+        T2["🔧 query_call_summary"]
+        T3["🔧 search_membership_card<br/>(內部呼叫 AI Search)"]
+    end
+
+    subgraph AISEARCH ["Azure AI Search"]
+        direction TB
+        IDX["📚 會員卡知識庫索引<br/>Hybrid Search"]
+    end
+
+    UI -->|"HTTP POST"| ORCH
+    S1A -->|"MCP call (固定)"| T1
+    S1B -->|"MCP call (固定)"| T2
+    S2B -->|"MCP call (固定)"| T3
+    T3 -->|"SDK 呼叫"| IDX
+    ORCH -->|"推薦結果 JSON"| UI
+
+    style TITLE fill:none,stroke:none
+    style ORCH fill:#F5F5F5,stroke:#1565C0,stroke-width:2px
+    style STEP1 fill:#E3F2FD,stroke:#1565C0
+    style STEP2 fill:#FFF3E0,stroke:#EF6C00
+    style STEP3 fill:#E8F5E9,stroke:#2E7D32
+    style MCP_SERVER fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
+    style AISEARCH fill:#FFFDE7,stroke:#F9A825,stroke-width:2px
+    style UI fill:#ECEFF1,stroke:#455A64,stroke-width:2px
+    style S1A fill:#BBDEFB,stroke:#1565C0
+    style S1B fill:#BBDEFB,stroke:#1565C0
+    style S2A fill:#FFE0B2,stroke:#EF6C00
+    style S2B fill:#FFE0B2,stroke:#EF6C00
+    style S3 fill:#C8E6C9,stroke:#2E7D32
+    style T1 fill:#E1BEE7,stroke:#7B1FA2
+    style T2 fill:#E1BEE7,stroke:#7B1FA2
+    style T3 fill:#E1BEE7,stroke:#7B1FA2
+    style IDX fill:#FFF9C4,stroke:#F9A825

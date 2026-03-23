@@ -45,8 +45,8 @@ async def render(mmd_path: str, png_path: str):
 
 async def main():
     doc = Path(r"c:\SynologyDrive\LTIMindtree\Projects\東森\sensengo\doc")
-    await render(str(doc / "architecture.mmd"), str(doc / "architecture.png"))
-    await render(str(doc / "flow.mmd"), str(doc / "flow.png"))
+    await render(str(doc / "architecture" / "architecture.mmd"), str(doc / "diagrams" / "architecture.png"))
+    await render(str(doc / "architecture" / "flow.mmd"), str(doc / "diagrams" / "flow.png"))
 
 if __name__ == "__main__":
     asyncio.run(main())

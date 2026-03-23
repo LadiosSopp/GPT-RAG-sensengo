@@ -37,8 +37,8 @@ graph TB
 
     subgraph AI["Azure OpenAI"]
         direction LR
-        GPT4oMini["GPT-4o-mini\nStep 2 Query Gen"]
-        GPT52["GPT-5.2 Reasoning\ngpt-52 50K TPM"]
+        GPT5Mini["GPT-5-mini\nStep 2 Query Gen"]
+        GPT54["GPT-5.4 Reasoning\ngpt-54 (default)"]
     end
 
     subgraph Config["配置服務"]
@@ -61,8 +61,8 @@ graph TB
     Tool2 -->|"Azure SDK\nAAD Token"| Cosmos
     Tool3 -->|"REST API\nAdmin Key"| AISearch
 
-    OAIClient -->|"AAD Auth\nManagedIdentity"| GPT4oMini
-    OAIClient -->|"AAD Auth\nManagedIdentity"| GPT52
+    OAIClient -->|"AAD Auth\nManagedIdentity"| GPT5Mini
+    OAIClient -->|"AAD Auth\nManagedIdentity"| GPT54
 
     SalesRec -.->|"讀取設定"| AppConfig
 

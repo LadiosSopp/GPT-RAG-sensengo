@@ -1,0 +1,111 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "primaryColor": "#E3F2FD",
+    "primaryTextColor": "#1A237E",
+    "primaryBorderColor": "#1565C0",
+    "secondaryColor": "#FFF3E0",
+    "secondaryTextColor": "#E65100",
+    "secondaryBorderColor": "#EF6C00",
+    "tertiaryColor": "#E8F5E9",
+    "tertiaryTextColor": "#1B5E20",
+    "tertiaryBorderColor": "#2E7D32",
+    "lineColor": "#455A64",
+    "fontSize": "14px"
+  }
+}}%%
+
+flowchart TB
+    subgraph TITLE [" "]
+        direction TB
+        T0["<b>改進版銷售推薦系統 — LLM 自主選擇工具</b><br/><i>Hybrid Strategy: MCP + RAG + Function Calling</i>"]
+        style T0 fill:none,stroke:none,color:#1A237E,font-size:18px
+    end
+
+    UI["📱 UI / API Client<br/>POST /orchestrator 或 /sales<br/>{customer_id, question}"]
+
+    subgraph ORCH ["Orchestrator — Hybrid Strategy"]
+        direction TB
+
+        INIT["初始化：同時註冊 MCP 工具 + 本地工具<br/>所有工具 schema 送給 LLM"]
+
+        subgraph LOOP ["LLM Agent 自主迴圈 (Semantic Kernel)"]
+            direction TB
+            LLM["🧠 LLM Agent<br/>收到問題 + 所有工具描述<br/>自主判斷下一步"]
+            DECIDE{LLM 決定}
+            CALL_TOOL["執行工具<br/>框架自動呼叫"]
+            RESULT["工具結果回傳給 LLM"]
+            FINAL["✅ LLM 產生最終回答<br/>(不需要更多工具)"]
+
+            LLM --> DECIDE
+            DECIDE -->|"需要呼叫工具"| CALL_TOOL
+            CALL_TOOL --> RESULT
+            RESULT -->|"繼續推理"| LLM
+            DECIDE -->|"資訊足夠"| FINAL
+        end
+
+        INIT --> LOOP
+    end
+
+    subgraph TOOLS ["可用工具清單 (全部由 LLM 自主決定是否呼叫)"]
+        direction TB
+
+        subgraph MCP_TOOLS ["MCP Server 工具 (遠端)"]
+            direction LR
+            T1["🔧 query_customer_persona<br/>查詢客戶 Persona"]
+            T2["🔧 query_call_summary<br/>查詢通話摘要"]
+            T3["🔧 search_membership_card<br/>搜尋會員卡權益"]
+            T4["🔧 search_customer_by_field<br/>依欄位搜尋客戶"]
+            T5["🔧 query_call_transcripts<br/>查詢通話逐字稿"]
+        end
+
+        subgraph LOCAL_TOOLS ["本地工具 (Orchestrator 內建)"]
+            direction LR
+            L1["🔍 search_knowledge_base<br/>AI Search RAG 檢索"]
+            L2["🌐 BingGrounding<br/>即時網路搜尋"]
+        end
+    end
+
+    subgraph BACKENDS ["後端服務"]
+        direction LR
+        MCP_SRV["MCP Server<br/>(gpt-rag-mcp)"]
+        COSMOS["Cosmos DB"]
+        AISEARCH["Azure AI Search"]
+        BING["Bing Search"]
+    end
+
+    UI -->|"HTTP POST"| ORCH
+    CALL_TOOL -.->|"MCP 協議"| MCP_TOOLS
+    CALL_TOOL -.->|"本地呼叫"| LOCAL_TOOLS
+    MCP_TOOLS -->|"SSE/HTTP"| MCP_SRV
+    MCP_SRV --> COSMOS
+    MCP_SRV --> AISEARCH
+    L1 -->|"SDK"| AISEARCH
+    L2 -->|"API"| BING
+    ORCH -->|"最終回答"| UI
+
+    style TITLE fill:none,stroke:none
+    style ORCH fill:#F5F5F5,stroke:#1565C0,stroke-width:2px
+    style LOOP fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px,stroke-dasharray:5 5
+    style TOOLS fill:#FAFAFA,stroke:#78909C,stroke-width:1px
+    style MCP_TOOLS fill:#F3E5F5,stroke:#7B1FA2
+    style LOCAL_TOOLS fill:#E3F2FD,stroke:#1565C0
+    style BACKENDS fill:#ECEFF1,stroke:#607D8B
+    style UI fill:#ECEFF1,stroke:#455A64,stroke-width:2px
+    style INIT fill:#C5CAE9,stroke:#3F51B5
+    style LLM fill:#FFECB3,stroke:#FF8F00,stroke-width:2px
+    style DECIDE fill:#FFF9C4,stroke:#F9A825
+    style CALL_TOOL fill:#FFE0B2,stroke:#EF6C00
+    style RESULT fill:#DCEDC8,stroke:#689F38
+    style FINAL fill:#C8E6C9,stroke:#2E7D32,stroke-width:2px
+    style T1 fill:#E1BEE7,stroke:#7B1FA2
+    style T2 fill:#E1BEE7,stroke:#7B1FA2
+    style T3 fill:#E1BEE7,stroke:#7B1FA2
+    style T4 fill:#E1BEE7,stroke:#7B1FA2
+    style T5 fill:#E1BEE7,stroke:#7B1FA2
+    style L1 fill:#BBDEFB,stroke:#1565C0
+    style L2 fill:#BBDEFB,stroke:#1565C0
+    style MCP_SRV fill:#CE93D8,stroke:#7B1FA2
+    style COSMOS fill:#B0BEC5,stroke:#607D8B
+    style AISEARCH fill:#FFF9C4,stroke:#F9A825
+    style BING fill:#B3E5FC,stroke:#0288D1

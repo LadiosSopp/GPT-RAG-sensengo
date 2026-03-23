@@ -2,7 +2,7 @@
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-code = Path(r"c:\SynologyDrive\LTIMindtree\Projects\東森\sensengo\doc\flow.mmd").read_text(encoding="utf-8")
+code = Path(r"c:\SynologyDrive\LTIMindtree\Projects\東森\sensengo\doc\architecture\flow.mmd").read_text(encoding="utf-8")
 html = f"""<!DOCTYPE html><html><head>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <style>body{{margin:0;padding:20px;background:white}}#c{{display:inline-block}}</style>
@@ -10,7 +10,7 @@ html = f"""<!DOCTYPE html><html><head>
 <script>mermaid.initialize({{startOnLoad:true,theme:"default",securityLevel:"loose"}});</script>
 </body></html>"""
 
-out_path = r"c:\SynologyDrive\LTIMindtree\Projects\東森\sensengo\doc\flow.png"
+out_path = r"c:\SynologyDrive\LTIMindtree\Projects\東森\sensengo\doc\diagrams\flow.png"
 
 with sync_playwright() as p:
     browser = p.chromium.launch()

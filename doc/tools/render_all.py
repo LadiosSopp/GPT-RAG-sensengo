@@ -4,7 +4,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 DOC = Path(r"c:\SynologyDrive\LTIMindtree\Projects\東森\sensengo\doc")
-MERMAID_JS = DOC / "mermaid.min.js"
+MERMAID_JS = DOC / "tools" / "mermaid.min.js"
 
 # Download mermaid.js if not present
 if not MERMAID_JS.exists():
@@ -57,6 +57,6 @@ mermaid.initialize({{startOnLoad:true,theme:"default",securityLevel:"loose"}});
 
 
 print("=== Architecture ===")
-render(DOC / "architecture.mmd", DOC / "architecture.png")
+render(DOC / "architecture" / "architecture.mmd", DOC / "diagrams" / "architecture.png")
 print("=== Flow ===")
-render(DOC / "flow.mmd", DOC / "flow.png")
+render(DOC / "architecture" / "flow.mmd", DOC / "diagrams" / "flow.png")

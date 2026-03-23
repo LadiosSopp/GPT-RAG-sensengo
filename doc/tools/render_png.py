@@ -20,7 +20,7 @@ def start_server():
 def build_html(mmd_code: str) -> str:
     return f"""<!DOCTYPE html><html><head>
 <meta charset="utf-8">
-<script src="./mermaid.min.js"></script>
+<script src="./tools/mermaid.min.js"></script>
 <style>
 body{{margin:0;padding:20px;background:white;overflow:visible;font-family:"Microsoft JhengHei","微軟正黑體","Noto Sans TC",sans-serif}}
 #c{{display:inline-block;overflow:visible}}
@@ -97,10 +97,10 @@ def main():
         )
         
         print("=== Architecture ===")
-        render(page, DOC / "architecture.mmd", DOC / "architecture.png")
+        render(page, DOC / "architecture" / "architecture.mmd", DOC / "diagrams" / "architecture.png")
         
         print("=== Flow ===")
-        render(page, DOC / "flow.mmd", DOC / "flow.png")
+        render(page, DOC / "architecture" / "flow.mmd", DOC / "diagrams" / "flow.png")
         
         browser.close()
     srv.shutdown()

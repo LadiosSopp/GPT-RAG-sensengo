@@ -1,0 +1,96 @@
+flowchart TD
+    %% ── 外部系統 ──────────────────────────────────────
+    STT["📞 STT 語音轉文字系統<br/>(Speech-to-Text)"]
+    TAG["🏷️ 外部標籤處理程式<br/>(Tag Program)"]
+
+    %% ── Blob Storage ─────────────────────────────────
+    BLOB_IN[("☁️ Blob Storage<br/>call-transcripts-stt/<br/>{call_id}.json")]
+    BLOB_OUT[("📦 Blob Storage<br/>call-transcripts-stt-processed/<br/>(已處理歸檔)")]
+
+    %% ── Ingestion 排程 ──────────────────────────────
+    CRON{{"⏰ APScheduler CRON<br/>CRON_RUN_TRANSCRIPT_PERSONA"}}
+    LIST["📋 列舉所有 .json Blob"]
+
+    %% ── 單檔處理子流程 ──────────────────────────────
+    DOWNLOAD["⬇️ 下載 & 解析 JSON<br/>驗證 customer_id / call_id"]
+    VALIDATE{"✅ 欄位驗證通過？"}
+    ERROR["❌ 記錄錯誤"]
+
+    %% ── MCP Server ───────────────────────────────────
+    MCP_UPSERT["🔧 MCP: upsert_transcript<br/>(寫入逐字稿)"]
+    MCP_QUERY["🔧 MCP: query_customer_persona<br/>(查詢現有側寫)"]
+    MCP_UPDATE["🔧 MCP: update_persona<br/>(更新側寫 + 追蹤)"]
+    MCP_TAG["🔧 MCP: update_customer_tags_tracking<br/>(更新標籤追蹤)"]
+
+    %% ── MCP Server 中心 ─────────────────────────────
+    MCP{{"🌐 MCP Server<br/>(統一資料存取層)"}}
+
+    %% ── 後端資料庫 ──────────────────────────────────
+    COSMOS[("🌐 Cosmos DB<br/>call-transcripts<br/>Partition: /customer_id")]
+    SQL[("🗄️ Azure SQL DB<br/>customer_persona_raw<br/>(53+ 欄位 + 追蹤欄位)")]
+
+    %% ── LLM ─────────────────────────────────────────
+    SQL_CHECK{"👤 客戶存在於 SQL？"}
+    LLM["🤖 Azure OpenAI LLM<br/>合併現有側寫 + 逐字稿<br/>產出新人物側寫 (≤500字)"]
+
+    %% ── 搬移 Blob ───────────────────────────────────
+    MOVE["📁 搬移 Blob<br/>source → processed"]
+
+    %% ── Summary ──────────────────────────────────────
+    SUMMARY["📊 寫入 Run Summary<br/>jobs/transcript-persona-indexer/{runId}/summary.json"]
+
+    %% ── 連線：主流程 ────────────────────────────────
+    STT -->|"產出 JSON 逐字稿"| BLOB_IN
+    BLOB_IN --> CRON
+    CRON -->|"定時觸發"| LIST
+    LIST -->|"每個 .json 並行處理<br/>(max_concurrency=4)"| DOWNLOAD
+    DOWNLOAD --> VALIDATE
+    VALIDATE -->|"否"| ERROR
+    VALIDATE -->|"是"| MCP_UPSERT
+
+    %% ── MCP 寫入 Cosmos ─────────────────────────────
+    MCP_UPSERT -->|"JSON-RPC"| MCP
+    MCP -->|"upsert_item"| COSMOS
+
+    %% ── MCP 查詢 SQL ────────────────────────────────
+    MCP_UPSERT --> MCP_QUERY
+    MCP_QUERY -->|"JSON-RPC"| MCP
+    MCP -->|"SELECT persona"| SQL
+    SQL --> SQL_CHECK
+
+    %% ── LLM 合併 & 更新 ─────────────────────────────
+    SQL_CHECK -->|"否<br/>僅存 Cosmos"| MOVE
+    SQL_CHECK -->|"是"| LLM
+    LLM -->|"合併後側寫"| MCP_UPDATE
+    MCP_UPDATE -->|"JSON-RPC"| MCP
+    MCP -->|"UPDATE persona +<br/>persona_updated_at +<br/>persona_update_source"| SQL
+
+    %% ── 搬移 & 完成 ─────────────────────────────────
+    MCP_UPDATE --> MOVE
+    MOVE --> BLOB_OUT
+    ERROR --> SUMMARY
+    MOVE --> SUMMARY
+
+    %% ── 標籤程式獨立路徑 (也走 MCP) ────────────────
+    TAG -->|"更新標籤後<br/>呼叫 MCP Tool"| MCP_TAG
+    MCP_TAG -->|"JSON-RPC"| MCP
+    MCP -->|"UPDATE tags_updated_at +<br/>tags_update_source"| SQL
+
+    %% ── 樣式 ─────────────────────────────────────────
+    classDef storage fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
+    classDef process fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
+    classDef llm fill:#fff3e0,stroke:#e65100,color:#bf360c
+    classDef db fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+    classDef external fill:#fce4ec,stroke:#c62828,color:#b71c1c
+    classDef decision fill:#fff9c4,stroke:#f9a825,color:#f57f17
+    classDef error fill:#ffcdd2,stroke:#c62828,color:#b71c1c
+    classDef mcp fill:#e8eaf6,stroke:#283593,color:#1a237e
+
+    class BLOB_IN,BLOB_OUT storage
+    class CRON,LIST,DOWNLOAD,MOVE,SUMMARY process
+    class LLM llm
+    class COSMOS,SQL db
+    class STT,TAG external
+    class VALIDATE,SQL_CHECK decision
+    class ERROR error
+    class MCP,MCP_UPSERT,MCP_QUERY,MCP_UPDATE,MCP_TAG mcp
