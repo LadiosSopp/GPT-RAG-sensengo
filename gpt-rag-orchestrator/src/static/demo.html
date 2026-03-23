@@ -19,21 +19,28 @@
     --accent: #e8f0fe;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  body { font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Split layout */
+  .main-layout { display: flex; flex: 1; overflow: hidden; }
+  .left-pane { flex: 1; overflow-y: auto; min-width: 0; }
+  .right-pane { width: 50%; min-width: 380px; max-width: 600px; display: flex; flex-direction: column; border-left: 2px solid var(--border); background: var(--card); }
 
   .header { background: linear-gradient(135deg, var(--primary), #0d47a1); color: white; padding: 24px 32px; }
   .header h1 { font-size: 22px; font-weight: 600; }
   .header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
 
-  .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px 16px; }
 
   /* Input Section */
   .input-section { background: var(--card); border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
   .input-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
   .input-group { display: flex; flex-direction: column; gap: 6px; }
   .input-group label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-  .input-group input { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; width: 220px; outline: none; transition: border-color 0.2s; }
-  .input-group input:focus { border-color: var(--primary); }
+  .input-group input, .input-group select { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; width: 220px; outline: none; transition: border-color 0.2s; background: white; }
+  .input-group input:focus, .input-group select:focus { border-color: var(--primary); }
+  .input-group select { cursor: pointer; }
+  .input-group .model-hint { font-size: 11px; color: var(--text-secondary); font-weight: 400; }
   .btn { padding: 10px 28px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
   .btn-primary { background: var(--primary); color: white; }
   .btn-primary:hover { background: var(--primary-dark); }
@@ -57,7 +64,20 @@
   /* Recommendation display */
   .section-title { font-size: 16px; font-weight: 700; color: var(--primary); margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
   .section-title:first-child { margin-top: 0; }
+  .collapsible-section { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+  .collapsible-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: var(--bg); cursor: pointer; user-select: none; border: none; width: 100%; text-align: left; font-size: 16px; font-weight: 700; color: var(--primary); transition: background 0.2s; }
+  .collapsible-header:hover { background: #eef1f5; }
+  .collapsible-header .chevron { font-size: 14px; color: var(--text-secondary); transition: transform 0.25s; }
+  .collapsible-header.open .chevron { transform: rotate(90deg); }
+  .collapsible-body { display: none; padding: 16px 18px; border-top: 1px solid var(--border); }
+  .collapsible-body.open { display: block; }
   .profile-summary { background: var(--accent); padding: 14px 18px; border-radius: 8px; font-size: 15px; margin-bottom: 16px; }
+  .persona-legend { background: #f8f9fa; border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; font-size: 13px; line-height: 1.8; }
+  .persona-legend summary { font-weight: 600; font-size: 14px; color: var(--primary); cursor: pointer; margin-bottom: 6px; }
+  .persona-legend .tag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 4px 20px; margin-top: 8px; }
+  .persona-legend .tag-item { display: flex; gap: 6px; }
+  .persona-legend .tag-name { font-weight: 600; color: var(--text); white-space: nowrap; }
+  .persona-legend .tag-desc { color: var(--text-secondary); }
   .plan-card { background: #f0f9ff; border: 1px solid #b3d9f7; border-radius: 10px; padding: 18px; margin-bottom: 16px; }
   .plan-name { font-size: 18px; font-weight: 700; color: #0d47a1; margin-bottom: 6px; }
   .plan-meta { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 10px; font-size: 14px; color: var(--text-secondary); }
@@ -84,6 +104,24 @@
 
   .comm-style { background: var(--accent); padding: 12px 16px; border-radius: 8px; font-size: 14px; }
   .success-prob { background: #e6f4ea; padding: 12px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--success); }
+
+  /* Suitability assessment */
+  .suitability-card { border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+  .suitability-card.suitable { background: #e6f4ea; border: 2px solid #34a853; }
+  .suitability-card.not-suitable { background: #fce8e6; border: 2px solid #ea4335; }
+  .suitability-verdict { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+  .suitability-verdict .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 13px; margin-left: 8px; }
+  .suitability-verdict .badge.high { background: #34a853; color: white; }
+  .suitability-verdict .badge.mid { background: #fbbc04; color: #333; }
+  .suitability-verdict .badge.low { background: #ea4335; color: white; }
+  .suitability-factors { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
+  .suitability-factors > div { flex: 1; min-width: 200px; }
+  .suitability-factors .factor-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .suitability-factors ul { list-style: none; padding: 0; margin: 0; }
+  .suitability-factors li { padding: 3px 0; font-size: 13px; }
+  .suitability-factors li.pos::before { content: '✅ '; }
+  .suitability-factors li.neg::before { content: '⚠️ '; }
+  .alt-strategy { background: #fff3e0; border: 1px solid #ffb74d; border-radius: 8px; padding: 12px 16px; font-size: 14px; margin-bottom: 16px; }
 
   /* Debug panel */
   .debug-overview { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -121,6 +159,51 @@
     .input-group input { width: 100%; }
     .container { padding: 12px 8px; }
   }
+
+  /* ── Chatbot Styles (right pane) ──────────────────────────── */
+  .chat-fab { display: none; /* hidden in split layout */ }
+
+  .chat-panel {
+    display: flex; flex-direction: column; flex: 1; overflow: hidden;
+  }
+
+  .chat-header {
+    background: linear-gradient(135deg, var(--primary), #0d47a1);
+    color: white; padding: 14px 18px; font-weight: 600; font-size: 15px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .chat-header .chat-close { background: none; border: none; color: white; font-size: 20px; cursor: pointer; padding: 0 4px; }
+
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px;
+    background: var(--bg);
+  }
+  .chat-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  .chat-msg.user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 4px; }
+  .chat-msg.bot { align-self: flex-start; background: var(--card); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .chat-msg.bot.streaming { border-color: var(--primary); }
+  .chat-msg.error { align-self: flex-start; background: #fce8e6; color: var(--error); }
+
+  .chat-input-row {
+    display: flex; padding: 10px 12px; border-top: 1px solid var(--border); background: var(--card); gap: 8px;
+  }
+  .chat-input-row input {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 20px;
+    font-size: 14px; outline: none; transition: border-color 0.2s;
+  }
+  .chat-input-row input:focus { border-color: var(--primary); }
+  .chat-input-row button {
+    padding: 8px 16px; border: none; border-radius: 20px;
+    background: var(--primary); color: white; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: background 0.2s; white-space: nowrap;
+  }
+  .chat-input-row button:hover { background: var(--primary-dark); }
+  .chat-input-row button:disabled { background: #94b8e8; cursor: not-allowed; }
+
+  @media (max-width: 768px) {
+    .main-layout { flex-direction: column; }
+    .right-pane { width: 100%; min-width: unset; max-width: unset; border-left: none; border-top: 2px solid var(--border); height: 50vh; }
+  }
 </style>
 </head>
 <body>
@@ -130,6 +213,8 @@
   <p>輸入客戶 ID，AI 將自動分析客戶 Persona、通話歷史與會員卡權益，生成個人化推薦話術</p>
 </div>
 
+<div class="main-layout">
+<div class="left-pane">
 <div class="container">
   <!-- Input -->
   <div class="input-section">
@@ -143,6 +228,16 @@
         <input type="text" id="apiEndpoint" style="width:380px" value="">
       </div>
       <button class="btn btn-primary" id="btnGenerate" onclick="generate()">生成推薦話術</button>
+    </div>
+    <div class="input-row" style="margin-top: 12px;">
+      <div class="input-group">
+        <label>Step 2 查詢生成模型 <span class="model-hint">(QUERY_GEN)</span></label>
+        <select id="queryGenModel"><option value="">載入中...</option></select>
+      </div>
+      <div class="input-group">
+        <label>Step 3 推薦話術模型 <span class="model-hint">(RECOMMENDATION)</span></label>
+        <select id="recModel"><option value="">載入中...</option></select>
+      </div>
     </div>
   </div>
 
@@ -175,8 +270,9 @@
 const STEP_LABELS = {
   fetch_persona: '取得客戶 Persona',
   fetch_call_summary: '取得通話摘要',
+  llm_query_generation: 'LLM 查詢生成',
   search_membership_card: '會員卡 RAG 搜尋',
-  gpt_recommendation: 'GPT-5.2 生成推薦',
+  gpt_recommendation: 'LLM 生成推薦',
 };
 const STEP_COLORS = ['#4285f4','#34a853','#fbbc04','#ea4335'];
 
@@ -189,7 +285,42 @@ const STEP_COLORS = ['#4285f4','#34a853','#fbbc04','#ea4335'];
   } else {
     document.getElementById('apiEndpoint').value = loc.origin + '/sales/recommendation';
   }
+  // Load available models
+  loadModels();
 })();
+
+async function loadModels() {
+  const loc = window.location;
+  const modelsUrl = loc.origin + '/sales/models';
+  const queryGenSelect = document.getElementById('queryGenModel');
+  const recSelect = document.getElementById('recModel');
+  try {
+    const resp = await fetch(modelsUrl, {
+      headers: { 'dapr-api-token': 'dev-token' },
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    const deployments = data.deployments || [];
+    const defaults = data.defaults || {};
+
+    function populateSelect(selectEl, defaultVal) {
+      selectEl.innerHTML = '';
+      for (const d of deployments) {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.id + ' (' + d.model + ')';
+        if (d.id === defaultVal) opt.selected = true;
+        selectEl.appendChild(opt);
+      }
+    }
+    populateSelect(queryGenSelect, defaults.query_gen_deployment);
+    populateSelect(recSelect, defaults.recommendation_deployment);
+  } catch (err) {
+    console.warn('Failed to load models:', err);
+    queryGenSelect.innerHTML = '<option value="">(無法載入，使用預設)</option>';
+    recSelect.innerHTML = '<option value="">(無法載入，使用預設)</option>';
+  }
+}
 
 let lastResult = null;
 
@@ -213,13 +344,19 @@ async function generate() {
   }, 1000);
 
   try {
+    const queryGenModel = document.getElementById('queryGenModel').value;
+    const recModel = document.getElementById('recModel').value;
+    const payload = { customer_id: customerId };
+    if (queryGenModel) payload.query_gen_deployment = queryGenModel;
+    if (recModel) payload.model_deployment = recModel;
+
     const resp = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'dapr-api-token': 'dev-token',
       },
-      body: JSON.stringify({ customer_id: customerId }),
+      body: JSON.stringify(payload),
     });
 
     clearInterval(timer);
@@ -295,14 +432,72 @@ function renderRecommendation(data) {
 
   // Customer Profile Summary
   if (rec.customer_profile_summary) {
-    html += `<div class="section-title">👤 客戶畫像</div>
-      <div class="profile-summary">${esc(rec.customer_profile_summary)}</div>`;
+    html += buildCollapsible('👤 客戶描述', `
+      <div class="profile-summary">${esc(rec.customer_profile_summary)}</div>
+      <details class="persona-legend">
+        <summary>📖 常用 Persona 標籤說明</summary>
+        <div class="tag-grid">
+          <div class="tag-item"><span class="tag-name">OB等級：</span><span class="tag-desc">電銷消費分級（A 最高 → D 最低）</span></div>
+          <div class="tag-item"><span class="tag-name">高健康意識：</span><span class="tag-desc">對保健食品/健康管理有高度關注</span></div>
+          <div class="tag-item"><span class="tag-name">高美麗意識：</span><span class="tag-desc">對美容保養類產品有高度需求</span></div>
+          <div class="tag-item"><span class="tag-name">健檢標籤：</span><span class="tag-desc">曾購買或使用健檢相關服務</span></div>
+          <div class="tag-item"><span class="tag-name">美容標籤：</span><span class="tag-desc">曾購買美容相關產品</span></div>
+          <div class="tag-item"><span class="tag-name">保健標籤：</span><span class="tag-desc">曾購買保健食品類產品</span></div>
+          <div class="tag-item"><span class="tag-name">是否獨居：</span><span class="tag-desc">判斷是否為獨居者（影響話術策略）</span></div>
+          <div class="tag-item"><span class="tag-name">寵愛自己名單：</span><span class="tag-desc">傾向為自己消費、重視生活品質</span></div>
+          <div class="tag-item"><span class="tag-name">商務菁英：</span><span class="tag-desc">具高社經背景的商務客群</span></div>
+          <div class="tag-item"><span class="tag-name">退休保健族：</span><span class="tag-desc">退休族群、保健需求較高</span></div>
+          <div class="tag-item"><span class="tag-name">重金珠寶客：</span><span class="tag-desc">曾購買高價珠寶、消費力強</span></div>
+          <div class="tag-item"><span class="tag-name">房產投資客：</span><span class="tag-desc">有房產投資、資產水平較高</span></div>
+          <div class="tag-item"><span class="tag-name">高社經地位職業：</span><span class="tag-desc">職業屬於高社經類別</span></div>
+          <div class="tag-item"><span class="tag-name">有高價保單：</span><span class="tag-desc">持有高額保險、反映財力</span></div>
+          <div class="tag-item"><span class="tag-name">三年內有高單一次付清：</span><span class="tag-desc">近三年有大額單筆消費紀錄</span></div>
+          <div class="tag-item"><span class="tag-name">有無養寵物：</span><span class="tag-desc">是否有寵物、影響推薦商品方向</span></div>
+        </div>
+      </details>
+    `, true);
+  }
+
+  // Membership Suitability Assessment
+  const suit = rec.membership_suitability;
+  if (suit) {
+    const isSuitable = suit.is_suitable;
+    const conf = (suit.confidence || '').trim();
+    let badgeClass = 'mid';
+    if (conf === '高') badgeClass = 'high';
+    else if (conf === '低') badgeClass = 'low';
+    html += buildCollapsible(`${isSuitable ? '✅' : '❌'} 會員卡推銷適合度評估`, `
+      <div class="suitability-card ${isSuitable ? 'suitable' : 'not-suitable'}">
+        <div class="suitability-verdict">
+          ${isSuitable ? '✅ 適合推銷' : '❌ 不建議推銷'}
+          <span class="badge ${badgeClass}">信心度：${esc(conf)}</span>
+        </div>
+        <div style="font-size:14px;margin-bottom:10px">${esc(suit.verdict || '')}</div>
+        <div class="suitability-factors">
+          <div>
+            <div class="factor-title" style="color:#34a853">正面因素</div>
+            <ul>${(suit.positive_factors||[]).map(f => `<li class="pos">${esc(f)}</li>`).join('')}</ul>
+          </div>
+          <div>
+            <div class="factor-title" style="color:#ea4335">負面因素</div>
+            <ul>${(suit.negative_factors||[]).map(f => `<li class="neg">${esc(f)}</li>`).join('')}</ul>
+          </div>
+        </div>
+      </div>
+    `, true);
+  }
+
+  // Alternative Strategy (when not suitable)
+  if (rec.alternative_strategy && rec.alternative_strategy !== 'null' && rec.alternative_strategy !== null) {
+    html += buildCollapsible('🔄 替代策略', `
+      <div class="alt-strategy">${esc(rec.alternative_strategy)}</div>
+    `, true);
   }
 
   // Recommended Plan
   const plan = rec.recommended_membership_plan;
-  if (plan) {
-    html += `<div class="section-title">💳 推薦會員卡方案</div>
+  if (plan && plan !== null && plan.plan_name) {
+    html += buildCollapsible('💳 推薦會員卡方案', `
       <div class="plan-card">
         <div class="plan-name">${esc(plan.plan_name)}</div>
         <div class="plan-meta">
@@ -313,13 +508,14 @@ function renderRecommendation(data) {
         <ul class="benefits-list">
           ${(plan.key_benefits||[]).map(b => `<li>${esc(b)}</li>`).join('')}
         </ul>
-      </div>`;
+      </div>
+    `, true);
   }
 
   // Sales Script
   const script = rec.sales_script;
   if (script) {
-    html += `<div class="section-title">🎤 推薦話術</div>`;
+    let scriptHtml = '';
     const steps = [
       ['opening', '📢 開場白'],
       ['needs_discovery', '❓ 探詢需求'],
@@ -330,7 +526,7 @@ function renderRecommendation(data) {
     ];
     for (const [k, label] of steps) {
       if (script[k]) {
-        html += `<div class="script-block">
+        scriptHtml += `<div class="script-block">
           <div class="script-label">${label}</div>
           <div class="script-text">${esc(script[k])}</div>
         </div>`;
@@ -339,47 +535,72 @@ function renderRecommendation(data) {
 
     // Objection handling
     if (script.objection_handling && script.objection_handling.length) {
-      html += `<div class="section-title">🛡️ 異議處理</div>`;
+      scriptHtml += `<div style="font-size:16px;font-weight:700;color:var(--primary);margin:16px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--accent)">🛡️ 異議處理</div>`;
       for (const obj of script.objection_handling) {
-        html += `<div class="objection-item">
+        scriptHtml += `<div class="objection-item">
           <div class="objection-q">❌ 客戶：${esc(obj.objection)}</div>
           <div class="objection-a">✅ 回應：${esc(obj.response)}</div>
         </div>`;
       }
     }
+    html += buildCollapsible('🎤 推薦話術', scriptHtml, true);
   }
 
   // Taboos
   if (rec.taboos && rec.taboos.length) {
-    html += `<div class="section-title">⚠️ 地雷禁忌</div>
-      <div class="taboo-list">${rec.taboos.map(t => `<span class="taboo-tag">🚫 ${esc(t)}</span>`).join('')}</div>`;
+    html += buildCollapsible('⚠️ 地雷禁忌', `
+      <div class="taboo-list">${rec.taboos.map(t => `<span class="taboo-tag">🚫 ${esc(t)}</span>`).join('')}</div>
+    `, true);
   }
 
   // Recommended Products
   if (rec.recommended_products && rec.recommended_products.length) {
-    html += `<div class="section-title">🛍️ 推薦商品</div>`;
+    let prodHtml = '';
     for (const p of rec.recommended_products) {
-      html += `<div class="product-card">
+      prodHtml += `<div class="product-card">
         <div class="product-name">${esc(p.name)}</div>
         <div class="product-reason">${esc(p.reason)}</div>
         ${p.suggested_script ? `<div class="product-script">"${esc(p.suggested_script)}"</div>` : ''}
       </div>`;
     }
+    html += buildCollapsible('🛍️ 推薦商品', prodHtml, true);
   }
 
   // Communication Style
   if (rec.communication_style) {
-    html += `<div class="section-title">💬 溝通風格建議</div>
-      <div class="comm-style">${esc(rec.communication_style)}</div>`;
+    html += buildCollapsible('💬 溝通風格建議', `
+      <div class="comm-style">${esc(rec.communication_style)}</div>
+    `, true);
   }
 
   // Success Probability
   if (rec.success_probability) {
-    html += `<div class="section-title">📊 成交機率</div>
-      <div class="success-prob">${esc(rec.success_probability)}</div>`;
+    html += buildCollapsible('📊 成交機率', `
+      <div class="success-prob">${esc(rec.success_probability)}</div>
+    `, true);
   }
 
   el.innerHTML = html || '<p style="color:var(--text-secondary)">無推薦資料</p>';
+
+  // Attach collapsible toggle listeners
+  el.querySelectorAll('.collapsible-header').forEach(hdr => {
+    hdr.addEventListener('click', () => {
+      hdr.classList.toggle('open');
+      hdr.nextElementSibling.classList.toggle('open');
+    });
+  });
+}
+
+// Helper: build a collapsible section
+function buildCollapsible(title, bodyHtml, startOpen) {
+  const openCls = startOpen ? ' open' : '';
+  return `<div class="collapsible-section">
+    <div class="collapsible-header${openCls}">
+      <span>${title}</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="collapsible-body${openCls}">${bodyHtml}</div>
+  </div>`;
 }
 
 // ── Render: Debug Tab ───────────────────────────────────────────
@@ -458,6 +679,137 @@ function formatJson(obj) {
   }
   return JSON.stringify(obj, null, 2);
 }
+
+// ── Chatbot ─────────────────────────────────────────────────
+const CHAT_SEARCH_INDEX = 'ragindex';   // membership documents index
+let chatOpen = true;
+let chatConversationId = null;
+let chatSending = false;
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chatPanel').classList.toggle('open', chatOpen);
+  if (chatOpen) document.getElementById('chatInput').focus();
+}
+
+async function chatSend() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg || chatSending) return;
+  input.value = '';
+
+  const messagesEl = document.getElementById('chatMessages');
+
+  // User bubble
+  const userBubble = document.createElement('div');
+  userBubble.className = 'chat-msg user';
+  userBubble.textContent = msg;
+  messagesEl.appendChild(userBubble);
+
+  // Bot bubble (streaming)
+  const botBubble = document.createElement('div');
+  botBubble.className = 'chat-msg bot streaming';
+  botBubble.textContent = '⏳ 思考中...';
+  messagesEl.appendChild(botBubble);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  chatSending = true;
+  document.getElementById('chatSendBtn').disabled = true;
+
+  try {
+    const endpoint = window.location.origin + '/orchestrator';
+    const payload = {
+      ask: msg,
+      search_index: CHAT_SEARCH_INDEX,
+    };
+    if (chatConversationId) payload.conversation_id = chatConversationId;
+
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'dapr-api-token': 'dev-token',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      botBubble.className = 'chat-msg error';
+      botBubble.textContent = '❌ ' + resp.status + ': ' + errText;
+      return;
+    }
+
+    // SSE streaming response
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+    let firstChunk = true;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+
+      if (firstChunk) {
+        // First chunk may contain conversation_id + space
+        const spaceIdx = chunk.indexOf(' ');
+        if (spaceIdx > 0 && !chatConversationId) {
+          const possibleId = chunk.substring(0, spaceIdx);
+          if (possibleId.length > 8) {
+            chatConversationId = possibleId;
+            fullText += chunk.substring(spaceIdx + 1);
+          } else {
+            fullText += chunk;
+          }
+        } else {
+          fullText += chunk;
+        }
+        firstChunk = false;
+      } else {
+        fullText += chunk;
+      }
+
+      botBubble.textContent = fullText || '⏳ ...';
+      botBubble.className = 'chat-msg bot streaming';
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    botBubble.className = 'chat-msg bot';
+    if (!fullText.trim()) botBubble.textContent = '(無回應)';
+
+  } catch (err) {
+    botBubble.className = 'chat-msg error';
+    botBubble.textContent = '❌ 連線失敗: ' + err.message;
+  } finally {
+    chatSending = false;
+    document.getElementById('chatSendBtn').disabled = false;
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+}
+
+function chatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); }
+}
 </script>
+
+</div><!-- /left-pane -->
+
+<div class="right-pane">
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-header">
+    <span>💳 會員卡權益問答</span>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-msg bot">你好！我是東森會員卡權益助手 🤖<br>你可以問我任何關於會員卡方案、權益、收費等問題。</div>
+  </div>
+  <div class="chat-input-row">
+    <input type="text" id="chatInput" placeholder="輸入問題..." onkeydown="chatKeydown(event)" autocomplete="off">
+    <button id="chatSendBtn" onclick="chatSend()">發送</button>
+  </div>
+</div>
+</div><!-- /right-pane -->
+</div><!-- /main-layout -->
+
 </body>
 </html>

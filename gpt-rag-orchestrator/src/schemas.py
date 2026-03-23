@@ -6,7 +6,7 @@ class SalesRecommendationRequest(BaseModel):
     """Request body for the /sales/recommendation endpoint."""
     customer_id: str = Field(
         ...,
-        description="客戶識別碼 (unikey3 for Persona, or 客代 for Call Log)",
+        description="客戶識別碼 (customerid for Persona, or 客代 for Call Log)",
         example="25045965",
     )
     call_customer_id: Optional[str] = Field(
@@ -16,8 +16,13 @@ class SalesRecommendationRequest(BaseModel):
     )
     model_deployment: Optional[str] = Field(
         None,
-        description="Azure OpenAI deployment 名稱（選填，預設用 config 設定）",
-        example="gpt-4o",
+        description="Step 3 推薦話術生成用的 deployment 名稱（選填，預設用 RECOMMENDATION_DEPLOYMENT config）",
+        example="gpt-52",
+    )
+    query_gen_deployment: Optional[str] = Field(
+        None,
+        description="Step 2 查詢生成用的 deployment 名稱（選填，預設用 QUERY_GEN_DEPLOYMENT config）",
+        example="gpt-5-mini",
     )
 
 class OrchestratorRequest(BaseModel):

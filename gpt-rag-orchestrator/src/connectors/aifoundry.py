@@ -87,7 +87,7 @@ class GenAIModelClient:
                 ],
                 temperature=self.temperature,
                 top_p=self.top_p,
-                max_tokens=max_tokens
+                max_completion_tokens=max_tokens
                 # No API key or model-endpoint headers needed with Entra ID
             )
             return response.choices[0].message.content

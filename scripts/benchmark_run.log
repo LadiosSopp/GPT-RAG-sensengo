@@ -1,0 +1,38 @@
+======================================================================
+  銷售推薦效能基準測試
+  客戶：26568707
+  開始時間：2026-03-18 21:56:47
+  API：https://ca-2v3lfktkn4xam-orch-gprag.nicepond-9d5552be.eastus2.azurecontainerapps.io/sales/recommendation
+======================================================================
+
+────────────────────────────────────────────────────────────
+  組合1: RAG Query GPT-5-nano + 推薦話術 GPT-5.2
+  query_gen=gpt-5-nano, model=gpt-52
+────────────────────────────────────────────────────────────
+  [nano+5.2] Run 1/10 ... 63.2s, tokens=10433, cost=$0.5119
+  [nano+5.2] Run 2/10 ... 73.7s, tokens=10512, cost=$0.5198
+  [nano+5.2] Run 3/10 ... 59.7s, tokens=10143, cost=$0.4829
+  [nano+5.2] Run 4/10 ... 67.3s, tokens=10432, cost=$0.5118
+  [nano+5.2] Run 5/10 ... 59.0s, tokens=10185, cost=$0.4871
+  [nano+5.2] Run 6/10 ... 64.6s, tokens=10466, cost=$0.5152
+  [nano+5.2] Run 7/10 ... 60.1s, tokens=10698, cost=$0.5384
+  [nano+5.2] Run 8/10 ... 65.5s, tokens=10652, cost=$0.5338
+  [nano+5.2] Run 9/10 ... 61.5s, tokens=10506, cost=$0.5192
+  [nano+5.2] Run 10/10 ... 52.2s, tokens=10401, cost=$0.5087
+Traceback (most recent call last):
+  File "C:\SynologyDrive\LTIMindtree\Projects\東森\sensengo\scripts\benchmark_sales_recommendation.py", line 457, in <module>
+    asyncio.run(run_benchmark())
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\v-ktseng\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Users\v-ktseng\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\v-ktseng\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\SynologyDrive\LTIMindtree\Projects\東森\sensengo\scripts\benchmark_sales_recommendation.py", line 429, in run_benchmark
+    print(f"\n  \u2713 完成：{len(successful)}/{RUNS_PER_COMBO} 成功")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'cp950' codec can't encode character '\u2713' in position 4: illegal multibyte sequence

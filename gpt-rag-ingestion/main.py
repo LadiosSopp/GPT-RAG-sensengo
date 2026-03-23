@@ -135,6 +135,7 @@ async def lifespan(app: FastAPI):
     s_blob_purge = _schedule("CRON_RUN_BLOB_PURGE", run_blob_purge, "blob_purge", "blob-storage-indexer-purger")
     s_nl2sql_index = _schedule("CRON_RUN_NL2SQL_INDEX", run_nl2sql_index, "nl2sql_index", "nl2sql-indexer")
     s_nl2sql_purge = _schedule("CRON_RUN_NL2SQL_PURGE", run_nl2sql_purge, "nl2sql_purge", "nl2sql-indexer-purger")
+    s_transcript_persona = _schedule("CRON_RUN_TRANSCRIPT_PERSONA", run_transcript_persona, "transcript_persona", "transcript-persona-indexer")
 
     # If a CRON variable was defined for a job, run it once now sequentially to
     # provide a deterministic startup run without APScheduler race/missed logs.
@@ -161,6 +162,9 @@ async def lifespan(app: FastAPI):
         if s_images_purge:
             logging.info("[startup] Running multimodality-images-purger immediately")
             await run_images_purge()
+        if s_transcript_persona:
+            logging.info("[startup] Running transcript-persona-indexer immediately")
+            await run_transcript_persona()
     except Exception:
         logging.exception("[startup] Error while running immediate scheduled jobs")
 
@@ -260,6 +264,14 @@ async def run_nl2sql_purge():
         await NL2SQLPurger().run()
     except Exception:
         logging.exception("[nl2sql-indexer-purger] Unexpected error")
+
+async def run_transcript_persona():
+    logging.debug("[transcript-persona-indexer] Starting")
+    try:
+        from jobs.transcript_persona_indexer import TranscriptPersonaIndexer
+        await TranscriptPersonaIndexer().run()
+    except Exception:
+        logging.exception("[transcript-persona-indexer] Unexpected error")
 
 # -------------------------------
 # HTTP-triggered document-chunking

@@ -2,8 +2,8 @@
 Sales recommendation connector — 3-step sequential workflow.
 
   Step 1  Fetch client Persona + Call Summary via MCP
-  Step 2  LLM (gpt-4o-mini) analyzes Persona + Call Log → generates targeted RAG query → search membership card via MCP
-  Step 3  GPT-5.2 reasoning model generates personalised 推薦話術
+  Step 2  LLM (QUERY_GEN_DEPLOYMENT) analyzes Persona + Call Log → generates targeted RAG query → search membership card via MCP
+  Step 3  LLM (RECOMMENDATION_DEPLOYMENT) generates personalised 推薦話術
 """
 
 import json
@@ -23,18 +23,33 @@ logger = logging.getLogger(__name__)
 SYSTEM_PROMPT = """你是東森購物的資深電銷策略顧問與話術專家。
 
 ## 你的任務
-根據以下三份資料，為電銷人員撰寫一套**完整、可直接照著說的推薦話術**。
+根據以下三份資料，**先判斷此客戶是否適合推銷會員卡**，再根據判斷結果產出對應的推薦話術。
 
 ### 輸入資料
 1. **客戶 Persona**：結構化標籤（年齡、消費力、偏好等）與文字側寫
 2. **歷史通話摘要**：包含痛點、禁忌、過去推銷結果
 3. **會員卡權益 RAG 檢索**：現行卡種的權益、收費、競業優勢
 
+## 適合推銷會員卡的判斷依據
+綜合以下面向進行評估：
+- **消費力與頻率**：消費力等級是否足以負擔會員卡費用？消費頻率是否高到能充分利用權益？
+- **興趣與權益匹配度**：客戶的偏好、生活型態是否與現有會員卡權益有明確交集？
+- **歷史態度**：通話紀錄中客戶對會員卡/加值服務是否有明確的拒絕、反感或負面經驗？
+- **現有會員狀態**：客戶是否已持有同類型卡片？是否有升級空間？
+- **風險因素**：是否有明確的地雷（如曾投訴推銷、明確表示不需要等）？
+
 ## 輸出格式（嚴格 JSON）
 {
-  "customer_profile_summary": "2-3 句話的客戶畫像（含消費力等級與核心偏好）",
+  "customer_profile_summary": "2-3 句話的客戶描述（含消費力等級與核心偏好）",
+  "membership_suitability": {
+    "is_suitable": true或false,
+    "confidence": "高/中/低",
+    "positive_factors": ["支持推銷的正面因素1", "正面因素2"],
+    "negative_factors": ["不利推銷的負面因素1", "負面因素2"],
+    "verdict": "一句話總結判斷結論與核心理由"
+  },
   "recommended_membership_plan": {
-    "plan_name": "建議的會員卡方案名稱",
+    "plan_name": "建議的會員卡方案名稱（若不適合推銷則為 null）",
     "reason": "為什麼這個方案最適合此客戶（引用 Persona 數據）",
     "monthly_cost": "月費或年費資訊",
     "key_benefits": ["此方案切合客戶需求的重點權益1", "權益2", "權益3"],
@@ -51,6 +66,7 @@ SYSTEM_PROMPT = """你是東森購物的資深電銷策略顧問與話術專家�
     "closing": "促成購買的收尾話術",
     "follow_up": "若未成交的後續追蹤話術"
   },
+  "alternative_strategy": "當 is_suitable 為 false 時，建議的替代互動策略（例如：先建立關係、推薦單品、等待更好時機等）；若 is_suitable 為 true 則為 null",
   "taboos": ["絕對不能提的地雷1", "地雷2"],
   "recommended_products": [
     {"name": "產品名", "reason": "推薦理由", "suggested_script": "推薦時的話術片段"}
@@ -60,6 +76,9 @@ SYSTEM_PROMPT = """你是東森購物的資深電銷策略顧問與話術專家�
 }
 
 ## 原則
+- **先判斷再行動**：務必先完成 membership_suitability 評估，再決定後續話術方向
+- 若 is_suitable 為 **true**：正常產出完整的會員卡推薦話術
+- 若 is_suitable 為 **false**：recommended_membership_plan 設為 null，sales_script 改為以關係維護或產品推薦為主的話術，並在 alternative_strategy 提供替代策略
 - **話術必須自然、口語化**，像是資深電銷人員會講的話，不要書面語
 - 所有建議必須有資料依據（標注來自 Persona / 通話紀錄 / 會員卡資訊）
 - 根據客戶消費力等級匹配最適會員卡方案
@@ -70,7 +89,7 @@ SYSTEM_PROMPT = """你是東森購物的資深電銷策略顧問與話術專家�
 
 
 class SalesRecommendationClient:
-    """3-step workflow: Persona → Membership RAG → GPT-5.2 推薦話術."""
+    """3-step workflow: Persona → Membership RAG → LLM 推薦話術."""
 
     def __init__(self):
         cfg = get_config()
@@ -148,9 +167,10 @@ class SalesRecommendationClient:
         return await self._call_tool("search_membership_card", query=query)
 
     async def _build_membership_query_with_llm(
-        self, persona_json: str, call_summary_json: str
+        self, persona_json: str, call_summary_json: str, *, query_gen_deployment: Optional[str] = None
     ) -> str:
-        """Use gpt-4o-mini to analyze Persona + Call Log and generate a targeted RAG query."""
+        """Use LLM (QUERY_GEN_DEPLOYMENT) to analyze Persona + Call Log and generate a targeted RAG query."""
+        query_gen_deployment = query_gen_deployment or self.cfg.get("QUERY_GEN_DEPLOYMENT", "gpt-5-mini")
         user_content = f"""## 客戶 Persona
 {persona_json}
 
@@ -162,13 +182,12 @@ class SalesRecommendationClient:
         try:
             client = await self._get_openai_client()
             response = await client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=query_gen_deployment,
                 messages=[
                     {"role": "system", "content": self.QUERY_GEN_PROMPT},
                     {"role": "user", "content": user_content},
                 ],
-                max_tokens=200,
-                temperature=0.3,
+                max_completion_tokens=200,
             )
             query = (response.choices[0].message.content or "").strip()
             await client.close()
@@ -187,7 +206,7 @@ class SalesRecommendationClient:
         endpoint = cfg.get("AZURE_OPENAI_ENDPOINT", "")
         api_version = cfg.get("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
 
-        # 600s timeout — reasoning models (gpt-5.2) can take minutes
+        # 600s timeout — reasoning models (gpt-5.4) can take minutes
         timeout = httpx.Timeout(600.0, connect=30.0)
         logger.info(f"[SalesRec] OpenAI endpoint={endpoint}, api_version={api_version}")
 
@@ -233,13 +252,14 @@ class SalesRecommendationClient:
         customer_id: str,
         call_customer_id: Optional[str] = None,
         model_deployment: Optional[str] = None,
+        query_gen_deployment: Optional[str] = None,
     ) -> dict:
         """
         3-step sequential workflow with debug timing & I/O capture.
 
           Step 1  Fetch complete Persona + Call Summary via MCP
-          Step 2  LLM (gpt-4o-mini) analyzes Persona+CallLog → generates targeted RAG query → search membership card via MCP
-          Step 3  GPT-5.2 reasoning model generates 推薦話術
+          Step 2  LLM (QUERY_GEN_DEPLOYMENT) analyzes Persona+CallLog → generates targeted RAG query → search membership card via MCP
+          Step 3  LLM (RECOMMENDATION_DEPLOYMENT) generates 推薦話術
 
         Returns:
             {"recommendation": {...}, "debug": {"steps": [...], "total_seconds": ...}}
@@ -271,6 +291,7 @@ class SalesRecommendationClient:
         _step_record("fetch_persona", _time.time() - t0,
                       {"customer_id": customer_id}, persona_json)
         _log(f"  Persona fetched ({len(persona_json)} chars)")
+        _log(f"  Persona content preview: {persona_json[:300]}")
 
         # ━━ Step 1b: 取得通話摘要 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         t0 = _time.time()
@@ -283,7 +304,7 @@ class SalesRecommendationClient:
         _log("Step 2/3 — LLM analyzing customer data → generating targeted RAG query")
 
         t0 = _time.time()
-        membership_query = await self._build_membership_query_with_llm(persona_json, call_summary_json)
+        membership_query = await self._build_membership_query_with_llm(persona_json, call_summary_json, query_gen_deployment=query_gen_deployment)
         query_gen_duration = _time.time() - t0
         _step_record("llm_query_generation", query_gen_duration,
                       {"persona_length": len(persona_json), "call_summary_length": len(call_summary_json)},
@@ -296,11 +317,10 @@ class SalesRecommendationClient:
                       {"query": membership_query}, membership_json)
         _log(f"  Membership RAG results ({len(membership_json)} chars)")
 
-        # ━━ Step 3: GPT-5.2 reasoning → 生成推薦話術 ━━━━━━━━━━━━
-        _log(f"Step 3/3 — GPT calling deployment={model_deployment or 'default'}")
-
+        # ━━ Step 3: LLM reasoning → 生成推薦話術 ━━━━━━━━━━━━━━━
         cfg = self.cfg
-        deployment = model_deployment or cfg.get("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-52")
+        deployment = model_deployment or cfg.get("RECOMMENDATION_DEPLOYMENT", cfg.get("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-5.4"))
+        _log(f"Step 3/3 — LLM calling deployment={deployment}")
 
         user_content = f"""以下是此客戶的三份資料，請據此生成完整的電銷推薦話術。
 
@@ -318,6 +338,7 @@ class SalesRecommendationClient:
         client = await self._get_openai_client()
         _log(f"  OpenAI client ready, calling {deployment}...")
 
+        # GPT-5 family uses max_completion_tokens and does not support custom temperature
         t0 = _time.time()
         usage_info = None
         try:
@@ -327,7 +348,7 @@ class SalesRecommendationClient:
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_content},
                 ],
-                max_completion_tokens=4000,
+                max_completion_tokens=16384,
             )
             gpt_duration = _time.time() - t0
             result_text = response.choices[0].message.content or ""

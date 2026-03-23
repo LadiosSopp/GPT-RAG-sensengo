@@ -1,0 +1,47 @@
+======================================================================
+  銷售推薦效能基準測試
+  客戶：26568707
+  開始時間：2026-03-18 22:09:36
+  API：https://ca-2v3lfktkn4xam-orch-gprag.nicepond-9d5552be.eastus2.azurecontainerapps.io/sales/recommendation
+======================================================================
+
+────────────────────────────────────────────────────────────
+  組合1: RAG Query GPT-5-nano + 推薦話術 GPT-5.2
+  query_gen=gpt-5-nano, model=gpt-52
+────────────────────────────────────────────────────────────
+  [nano+5.2] Run 1/10 ... 95.7s, tokens=10392, cost=$0.5078
+  [nano+5.2] Run 2/10 ... 103.8s, tokens=10576, cost=$0.5262
+  [nano+5.2] Run 3/10 ... 81.9s, tokens=10337, cost=$0.5023
+  [nano+5.2] Run 4/10 ... 84.8s, tokens=10263, cost=$0.4949
+  [nano+5.2] Run 5/10 ... 87.9s, tokens=10499, cost=$0.5185
+  [nano+5.2] Run 6/10 ... 68.1s, tokens=10498, cost=$0.5184
+  [nano+5.2] Run 7/10 ... 89.6s, tokens=10256, cost=$0.4942
+  [nano+5.2] Run 8/10 ... 82.3s, tokens=10266, cost=$0.4952
+  [nano+5.2] Run 9/10 ... 105.7s, tokens=10105, cost=$0.4791
+  [nano+5.2] Run 10/10 ... 100.5s, tokens=10324, cost=$0.5010
+
+  [OK] 完成：10/10 成功
+    平均時間：89.54s，平均成本：$0.5038
+
+────────────────────────────────────────────────────────────
+  組合2: RAG Query GPT-5-nano + 推薦話術 GPT-5-nano
+  query_gen=gpt-5-nano, model=gpt-5-nano
+────────────────────────────────────────────────────────────
+  [nano+nano] Run 1/10 ... 94.7s, tokens=15234, cost=$0.0421
+  [nano+nano] Run 2/10 ... 93.3s, tokens=14562, cost=$0.0394
+  [nano+nano] Run 3/10 ... 84.4s, tokens=14703, cost=$0.0400
+  [nano+nano] Run 4/10 ... 88.7s, tokens=15312, cost=$0.0424
+  [nano+nano] Run 5/10 ... 87.2s, tokens=15392, cost=$0.0427
+  [nano+nano] Run 6/10 ... 67.9s, tokens=14706, cost=$0.0400
+  [nano+nano] Run 7/10 ... 60.8s, tokens=15265, cost=$0.0422
+  [nano+nano] Run 8/10 ... 100.5s, tokens=17372, cost=$0.0507
+  [nano+nano] Run 9/10 ... 82.7s, tokens=15137, cost=$0.0417
+  [nano+nano] Run 10/10 ... 71.5s, tokens=15585, cost=$0.0435
+
+  [OK] 完成：10/10 成功
+    平均時間：82.63s，平均成本：$0.0425
+
+======================================================================
+  報告已儲存至：C:\SynologyDrive\LTIMindtree\Projects\東森\sensengo\doc\benchmark-sales-recommendation.md
+======================================================================
+  原始資料：C:\SynologyDrive\LTIMindtree\Projects\東森\sensengo\doc\benchmark-sales-recommendation.json

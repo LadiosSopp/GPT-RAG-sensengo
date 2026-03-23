@@ -8,7 +8,6 @@ Uses AAD token authentication (static token acquired once at startup).
 import json
 import logging
 import os
-import subprocess
 import time
 
 logger = logging.getLogger(__name__)
@@ -32,32 +31,13 @@ def _get_container():
         return _container
 
     from azure.cosmos import CosmosClient
-    from azure.core.credentials import AccessToken
 
     cosmos_key = os.getenv("COSMOS_KEY")
     if cosmos_key:
         client = CosmosClient(COSMOS_ENDPOINT, credential=cosmos_key)
     else:
-        # Acquire AAD token once via Azure CLI
-        res = subprocess.run(
-            "az account get-access-token --resource https://cosmos.azure.com/ "
-            "--query accessToken -o tsv",
-            shell=True,
-            capture_output=True,
-            text=True,
-        )
-        token = res.stdout.strip()
-        if not token:
-            raise RuntimeError(f"Failed to get Cosmos AAD token: {res.stderr.strip()}")
-
-        class _StaticCred:
-            def __init__(self, tok):
-                self._tok = tok
-
-            def get_token(self, *_a, **_kw):
-                return AccessToken(self._tok, int(time.time()) + 3600)
-
-        client = CosmosClient(COSMOS_ENDPOINT, credential=_StaticCred(token))
+        from azure.identity import DefaultAzureCredential
+        client = CosmosClient(COSMOS_ENDPOINT, credential=DefaultAzureCredential())
 
     _container = (
         client.get_database_client(COSMOS_DATABASE)
@@ -91,6 +71,54 @@ def get_call_transcripts(customer_id: str) -> str:
 
     except Exception as exc:
         logger.exception("[cosmos] Query failed")
+        return json.dumps({"error": str(exc)}, ensure_ascii=False)
+
+
+def upsert_call_transcript(
+    customer_id: str,
+    call_id: str,
+    call_date: str,
+    status: str,
+    transcript: str,
+    source: str = "",
+    ingested_at: str = "",
+) -> str:
+    """
+    Upsert a call transcript document into Cosmos DB.
+
+    Args:
+        customer_id: The customer identifier (客代), used as partition key.
+        call_id: Unique call identifier, used as document id.
+        call_date: Call date in YYYY-MM-DD format.
+        status: Call result (成功/失敗).
+        transcript: Full transcript text.
+        source: Origin of the transcript (e.g. 'stt_blob_ingest').
+        ingested_at: ISO timestamp of ingestion.
+
+    Returns:
+        A JSON object with status and upserted document id.
+    """
+    logger.info(f"[cosmos] Upserting transcript customer_id={customer_id} call_id={call_id}")
+    try:
+        container = _get_container()
+        doc = {
+            "id": call_id,
+            "customer_id": customer_id,
+            "call_id": call_id,
+            "call_date": call_date,
+            "status": status,
+            "transcript": transcript,
+        }
+        if source:
+            doc["source"] = source
+        if ingested_at:
+            doc["ingested_at"] = ingested_at
+        container.upsert_item(body=doc)
+        logger.info(f"[cosmos] Upserted call_id={call_id}")
+        return json.dumps({"status": "ok", "call_id": call_id}, ensure_ascii=False)
+
+    except Exception as exc:
+        logger.exception("[cosmos] Upsert failed")
         return json.dumps({"error": str(exc)}, ensure_ascii=False)
 
 

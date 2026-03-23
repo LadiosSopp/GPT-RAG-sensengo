@@ -1,0 +1,12 @@
+C:\Users\v-ktseng\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.2) or chardet (7.0.1)/charset_normalizer (3.4.4) doesn't match a supported version!
+  warnings.warn(
+Downloading: 20260209/500_customer_persona_sanitized.xlsx ...
+Downloaded 651,162 bytes
+Excel rows: 817, columns: ['customerid', '性別', '年齡', '年齡區間', '縣市', 'CUSTOMERTYPEname', '城市', 'OB等級', '全通路會員等級', '星座', '註冊日', '是否有OB專員維運', '會員年資_年月天', '是否獨居', '是否為寵愛自己名單', '高健康意識', '高美麗意識', '健檢標籤', '美容標籤', '保健標籤', '有無養寵物', 'Regal會員等級', '最高東寵等級', '全通路歷史累積消費金額', '全通路歷史累積消費件數', '全通路近三年累積消費金額', '全通路近三年累積消費件數', '全通路近一年累積消費金額', '全通路近一年累積消費件數', '全通路近一年保健消費金額', '全通路近一年保健消費件數', '全通路近一年美容消費金額', '全通路近一年美容消費件數', 'ob歷史累積消費金額', 'ob歷史累積消費件數', 'OB近三年累積消費金額', 'OB近三年累積消費件數', 'OB近一年累積消費金額', 'OB近一年累積消費件數', 'OB近一年保健消費金額', 'OB近一年保健消費件數', 'OB近一年美容消費金額', 'OB近一年美容消費件數', '富人標籤(有任一細項)', '三年內有高單一次付清', '三年內買過黃金鑽石', '十年地址不變', '商務菁英', '房產投資客', '打高爾夫', '有富等信用卡', '有高價保單', '科學園區3公里內', '買過大額禮券', '買過收藏品', '退休保健族', '重金珠寶客', '關注理財', '高價地段', '高社經地位職業', 'persona']
+Recreating table ...
+Inserted rows: 200/817
+Inserted rows: 400/817
+Inserted rows: 600/817
+Inserted rows: 800/817
+Inserted rows: 817/817
+Done. Verified rows in SQL: 434

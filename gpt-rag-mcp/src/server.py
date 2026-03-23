@@ -9,8 +9,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 from mcp.server.fastmcp import FastMCP
 from tools.wikipedia import search_wikipedia
-from tools.sql_persona import get_customer_persona, search_customers
-from tools.cosmos_transcripts import get_call_transcripts, get_call_summary
+from tools.sql_persona import get_customer_persona, search_customers, get_persona_update_info, update_tags_tracking, update_customer_persona
+from tools.cosmos_transcripts import get_call_transcripts, get_call_summary, upsert_call_transcript
 from tools.aisearch_membership import search_membership_info
 from prompts.greeting import greet_user
 
@@ -33,7 +33,7 @@ def query_customer_persona(customer_id: str) -> str:
     """查詢客戶 Persona 結構化資料（年齡、消費力、偏好標籤等）。
 
     Args:
-        customer_id: 客戶的 unikey3 識別碼
+        customer_id: 客戶的 customerid 識別碼
     """
     return get_customer_persona(customer_id)
 
@@ -67,7 +67,36 @@ def query_call_summary(customer_id: str) -> str:
         customer_id: 客戶的客代識別碼
     """
     return get_call_summary(customer_id)
+@mcp.tool()
+def upsert_transcript(
+    customer_id: str,
+    call_id: str,
+    call_date: str,
+    status: str,
+    transcript: str,
+    source: str = "",
+    ingested_at: str = "",
+) -> str:
+    """新增或更新客戶的通話逐字稿至 Cosmos DB。
 
+    Args:
+        customer_id: 客戶的客代識別碼 (Partition Key)
+        call_id: 通話唯一識別碼
+        call_date: 通話日期 (YYYY-MM-DD)
+        status: 推銷結果 (成功/失敗)
+        transcript: 完整逐字稿文本
+        source: 來源描述 (e.g. 'stt_blob_ingest')
+        ingested_at: 擷取時間 ISO 格式
+    """
+    return upsert_call_transcript(
+        customer_id=customer_id,
+        call_id=call_id,
+        call_date=call_date,
+        status=status,
+        transcript=transcript,
+        source=source,
+        ingested_at=ingested_at,
+    )
 # ── AI Search Membership Card Tool ─────────────────────────────────
 
 @mcp.tool()
@@ -79,6 +108,38 @@ async def search_membership_card(query: str, top_k: int = 5) -> str:
         top_k: 回傳最大筆數（預設 5）
     """
     return await search_membership_info(query, top_k)
+
+# ── Persona Update Tracking Tools ──────────────────────────────────
+
+@mcp.tool()
+def query_persona_update_info(customer_id: str) -> str:
+    """查詢客戶人物側寫與標籤的最後更新時間及來源。
+
+    Args:
+        customer_id: 客戶的 customerid 識別碼
+    """
+    return get_persona_update_info(customer_id)
+
+@mcp.tool()
+def update_persona(customer_id: str, persona_text: str, source: str) -> str:
+    """更新客戶的人物側寫文字及追蹤資訊（更新時間與來源）。
+
+    Args:
+        customer_id: 客戶的 customerid 識別碼
+        persona_text: 新的人物側寫文字
+        source: 更新來源描述（例如 'transcript_ingest:<call_id>'）
+    """
+    return update_customer_persona(customer_id, persona_text, source)
+
+@mcp.tool()
+def update_customer_tags_tracking(customer_id: str, source: str) -> str:
+    """更新客戶標籤的追蹤資訊（更新時間與來源）。供標籤處理程式呼叫。
+
+    Args:
+        customer_id: 客戶的 customerid 識別碼
+        source: 更新來源描述（例如 'tag_program_v2'）
+    """
+    return update_tags_tracking(customer_id, source)
 
 @mcp.prompt()
 def greet_user_prompt(name: str, style: str = "friendly") -> str:

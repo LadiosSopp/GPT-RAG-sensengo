@@ -156,6 +156,63 @@ async def orchestrator_endpoint(
         media_type="text/event-stream"
     )
 
+# ── Sales Model Listing Endpoint ───────────────────────────────
+
+@app.get(
+    "/sales/models",
+    dependencies=[Depends(validate_auth)],
+    summary="List available Azure OpenAI model deployments",
+)
+async def sales_models_endpoint():
+    """Return deployments available in the configured Azure OpenAI resource."""
+    import httpx
+    from azure.identity.aio import ChainedTokenCredential, ManagedIdentityCredential, AzureDeveloperCliCredential, AzureCliCredential
+
+    cfg_local = get_config()
+    endpoint = cfg_local.get("AZURE_OPENAI_ENDPOINT", "").rstrip("/")
+    api_key = cfg_local.get("AZURE_OPENAI_API_KEY", "")
+
+    # Use api-version=2022-12-01 which supports listing all deployments
+    url = f"{endpoint}/openai/deployments?api-version=2022-12-01"
+    timeout = httpx.Timeout(30.0, connect=10.0)
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        if api_key:
+            headers = {"api-key": api_key}
+        else:
+            credential = ChainedTokenCredential(
+                ManagedIdentityCredential(),
+                AzureDeveloperCliCredential(),
+                AzureCliCredential(),
+            )
+            token = await credential.get_token("https://cognitiveservices.azure.com/.default")
+            headers = {"Authorization": f"Bearer {token.token}"}
+            await credential.close()
+
+        resp = await client.get(url, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+
+    # Filter to chat-capable models (exclude embeddings, whisper, dall-e, etc.)
+    deployments = []
+    for d in data.get("data", []):
+        model = d.get("model", "")
+        dep_id = d.get("id", "")
+        if model.startswith(("gpt", "o1", "o3", "o4")):
+            deployments.append({"id": dep_id, "model": model})
+
+    # Current defaults
+    query_gen_default = cfg_local.get("QUERY_GEN_DEPLOYMENT", "gpt-5-mini")
+    rec_default = cfg_local.get("RECOMMENDATION_DEPLOYMENT", cfg_local.get("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-5.4"))
+
+    return {
+        "deployments": deployments,
+        "defaults": {
+            "query_gen_deployment": query_gen_default,
+            "recommendation_deployment": rec_default,
+        },
+    }
+
 # ── Sales Recommendation Endpoint ─────────────────────────────────
 
 @app.post(
@@ -169,7 +226,7 @@ async def sales_recommendation_endpoint(body: SalesRecommendationRequest):
     3-step sequential workflow:
       Step 1  MCP → SQL Persona + Cosmos Call Summary
       Step 2  Persona → dynamic query → MCP → AI Search membership card RAG
-      Step 3  GPT-5.2 reasoning model → 推薦話術
+      Step 3  GPT-5.4 reasoning model → 推薦話術
     """
     from connectors.sales_recommendation import SalesRecommendationClient
 
@@ -178,6 +235,7 @@ async def sales_recommendation_endpoint(body: SalesRecommendationRequest):
         customer_id=body.customer_id,
         call_customer_id=body.call_customer_id,
         model_deployment=body.model_deployment,
+        query_gen_deployment=body.query_gen_deployment,
     )
 
     return {
