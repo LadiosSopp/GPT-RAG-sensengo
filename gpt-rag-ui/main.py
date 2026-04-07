@@ -26,6 +26,21 @@ from dependencies import get_config
 config : AppConfigClient = get_config()
 logger.info("Configuration loaded from Azure App Configuration")
 
+# Pipeline admin: ingestion service connection settings
+import httpx as _httpx
+
+def _get_ingestion_base_url() -> str:
+    try:
+        return (config.get("INGESTION_BASE_URL", "") or "").rstrip("/")
+    except Exception:
+        return ""
+
+def _get_ingestion_api_key() -> str:
+    try:
+        return config.get("INGESTION_APP_APIKEY", "") or ""
+    except Exception:
+        return ""
+
 # Import debug_store early for ASGI wrapper use
 from debug_store import get_debug_data
 
@@ -165,32 +180,91 @@ chainlit_app.openapi = _safe_openapi
 
 # Wrap the app with debug middleware at ASGI level - this runs BEFORE Chainlit processes any routes
 class DebugASGIWrapper:
-    """ASGI wrapper that intercepts debug routes before they reach Chainlit"""
+    """ASGI wrapper that intercepts debug routes and admin panel before they reach Chainlit"""
     def __init__(self, app):
         self.app = app
+
+    # --- helper: send a complete HTTP response at the ASGI level ---
+    @staticmethod
+    async def _send_response(send, *, status: int, content_type: bytes, body: bytes):
+        await send({
+            "type": "http.response.start",
+            "status": status,
+            "headers": [[b"content-type", content_type]],
+        })
+        await send({"type": "http.response.body", "body": body})
+
+    # --- helper: proxy a request to the ingestion service ---
+    async def _proxy_ingestion(self, method: str, path: str, send, *, body: bytes | None = None):
+        base_url = _get_ingestion_base_url()
+        api_key = _get_ingestion_api_key()
+        if not base_url or not api_key:
+            await self._send_response(
+                send,
+                status=503,
+                content_type=b"application/json",
+                body=json.dumps({"error": "INGESTION_BASE_URL or INGESTION_APP_APIKEY not configured"}).encode(),
+            )
+            return
+        try:
+            async with _httpx.AsyncClient(timeout=15) as client:
+                resp = await client.request(
+                    method,
+                    f"{base_url}{path}",
+                    headers={"X-API-KEY": api_key},
+                    content=body,
+                )
+            await self._send_response(
+                send,
+                status=resp.status_code,
+                content_type=b"application/json",
+                body=resp.content,
+            )
+        except Exception as exc:
+            logger.exception("Failed to proxy to ingestion service")
+            await self._send_response(
+                send,
+                status=502,
+                content_type=b"application/json",
+                body=json.dumps({"error": str(exc)}).encode(),
+            )
     
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             path = scope.get("path", "")
+            method = scope.get("method", "GET")
             
             # Handle /_debug/data endpoint
             if path == "/_debug/data":
                 data = get_debug_data()
                 body = json.dumps(data if data else {"error": "No debug data available", "status": "waiting"})
-                
-                async def send_response(send):
-                    await send({
-                        "type": "http.response.start",
-                        "status": 200,
-                        "headers": [[b"content-type", b"application/json"]],
-                    })
-                    await send({
-                        "type": "http.response.body",
-                        "body": body.encode(),
-                    })
-                
-                await send_response(send)
+                await self._send_response(send, status=200, content_type=b"application/json", body=body.encode())
                 return
+
+            # Handle /admin route - serve the admin HTML page
+            if path in ["/admin", "/admin/"]:
+                html_path = os.path.join(os.path.dirname(__file__), "public", "admin.html")
+                try:
+                    with open(html_path, "r", encoding="utf-8") as f:
+                        html = f.read()
+                    await self._send_response(send, status=200, content_type=b"text/html; charset=utf-8", body=html.encode())
+                except FileNotFoundError:
+                    await self._send_response(send, status=404, content_type=b"text/plain", body=b"Admin page not found")
+                return
+
+            # Proxy: GET /api/admin/pipelines -> ingestion GET /api/pipelines
+            if path == "/api/admin/pipelines" and method == "GET":
+                await self._proxy_ingestion("GET", "/api/pipelines", send)
+                return
+
+            # Proxy: POST /api/admin/pipelines/{group_id}/toggle -> ingestion POST /api/pipelines/{group_id}/toggle
+            if path.startswith("/api/admin/pipelines/") and path.endswith("/toggle") and method == "POST":
+                # Extract group_id from path  /api/admin/pipelines/<group_id>/toggle
+                parts = path.split("/")
+                if len(parts) == 6:
+                    group_id = parts[4]
+                    await self._proxy_ingestion("POST", f"/api/pipelines/{group_id}/toggle", send)
+                    return
             
             # Handle /dev route
             if path in ["/dev", "/dev/"]:

@@ -1,0 +1,74 @@
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#0078D4', 'primaryTextColor': '#fff', 'primaryBorderColor': '#005A9E', 'lineColor': '#605E5C', 'secondaryColor': '#5C2D91', 'tertiaryColor': '#F3F2F1', 'fontSize': '14px', 'fontFamily': 'Segoe UI'}}}%%
+flowchart LR
+    subgraph UI["Frontend\ngpt-rag-ui"]
+        direction TB
+        CHAINLIT["Chainlit Web UI"]
+        FASTAPI_UI["FastAPI Router"]
+        CHAINLIT --> FASTAPI_UI
+    end
+
+    subgraph ORCH["Orchestrator\ngpt-rag-orchestrator"]
+        direction TB
+        FASTAPI_ORCH["FastAPI Backend"]
+        RAG_AGENT["RAG Agent\nAzure AI Foundry"]
+        SALES_REC["Sales Recommendation\nEngine"]
+        FASTAPI_ORCH --> RAG_AGENT
+        FASTAPI_ORCH --> SALES_REC
+    end
+
+    subgraph MCP["MCP Server\ngpt-rag-mcp"]
+        direction TB
+        MCP_PERSONA["query_customer_persona"]
+        MCP_CALL["query_call_summary"]
+        MCP_SEARCH["search_membership_card"]
+    end
+
+    subgraph AZURE["Azure Cloud Services"]
+        direction TB
+        AOAI["Azure OpenAI\nGPT-5.2 / GPT-5-mini"]
+        AISEARCH["Azure AI Search\nHybrid RAG Index"]
+        COSMOSDB["Cosmos DB\nConversations & Transcripts"]
+        SQLDB["Azure SQL DB\nCustomer Persona"]
+        BLOB["Blob Storage"]
+        APPCONFIG["App Configuration"]
+        STT["Speech-to-Text"]
+    end
+
+    subgraph INGEST["Ingestion Pipeline\ngpt-rag-ingestion"]
+        direction TB
+        SCHEDULER["Scheduler\nAPScheduler"]
+        CHUNKING["Document Chunking"]
+        EMBEDDING["Vector Embedding"]
+        SCHEDULER --> CHUNKING --> EMBEDDING
+    end
+
+    %% Primary Flow
+    UI -->|"HTTP / SSE"| ORCH
+    RAG_AGENT -->|"Semantic Kernel"| AOAI
+    SALES_REC -->|"LLM Inference"| AOAI
+    SALES_REC -->|"MCP Protocol"| MCP
+    MCP_PERSONA --> SQLDB
+    MCP_CALL --> COSMOSDB
+    MCP_SEARCH --> AISEARCH
+
+    %% Ingestion
+    BLOB --> CHUNKING
+    EMBEDDING --> AISEARCH
+    EMBEDDING --> AOAI
+
+    %% Supporting
+    FASTAPI_ORCH -.->|"Config"| APPCONFIG
+    FASTAPI_ORCH -.->|"Save Chat"| COSMOSDB
+    STT -.-> COSMOSDB
+
+    classDef uiStyle fill:#0078D4,stroke:#005A9E,color:#fff,stroke-width:2px
+    classDef orchStyle fill:#5C2D91,stroke:#4B2578,color:#fff,stroke-width:2px
+    classDef mcpStyle fill:#FF8C00,stroke:#CC7000,color:#fff,stroke-width:2px
+    classDef ingestStyle fill:#107C10,stroke:#0B5A0B,color:#fff,stroke-width:2px
+    classDef azureStyle fill:#0078D4,stroke:#005A9E,color:#fff,stroke-width:2px
+
+    class CHAINLIT,FASTAPI_UI uiStyle
+    class FASTAPI_ORCH,RAG_AGENT,SALES_REC orchStyle
+    class MCP_PERSONA,MCP_CALL,MCP_SEARCH mcpStyle
+    class SCHEDULER,CHUNKING,EMBEDDING ingestStyle
+    class AOAI,AISEARCH,COSMOSDB,SQLDB,BLOB,APPCONFIG,STT azureStyle

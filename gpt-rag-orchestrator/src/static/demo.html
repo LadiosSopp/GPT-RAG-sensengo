@@ -106,9 +106,9 @@
   .success-prob { background: #e6f4ea; padding: 12px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--success); }
 
   /* Suitability assessment */
-  .suitability-card { border-radius: 10px; padding: 18px; margin-bottom: 16px; }
-  .suitability-card.suitable { background: #e6f4ea; border: 2px solid #34a853; }
-  .suitability-card.not-suitable { background: #fce8e6; border: 2px solid #ea4335; }
+  .suitability-card { border-radius: 10px; padding: 18px; margin-bottom: 16px; background: var(--accent); border: 1px solid var(--border); }
+  .suitability-card.suitable { background: var(--accent); border: 1px solid var(--border); }
+  .suitability-card.not-suitable { background: var(--accent); border: 1px solid var(--border); }
   .suitability-verdict { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
   .suitability-verdict .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 13px; margin-left: 8px; }
   .suitability-verdict .badge.high { background: #34a853; color: white; }
@@ -159,6 +159,19 @@
     .input-group input { width: 100%; }
     .container { padding: 12px 8px; }
   }
+
+  /* ── Settings Tab ─────────────────────────────────────────── */
+  .settings-section { background: var(--bg); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+  .settings-section h3 { font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 12px; }
+  .settings-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
+  .settings-row .input-group input, .settings-row .input-group select { width: 280px; }
+
+  /* ── Pipeline cards in settings ────────────────────────────── */
+  .pp-cards { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+  .pp-card { display: flex; align-items: center; gap: 8px; background: white; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); }
+  .pp-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+  .pp-name { font-size: 13px; font-weight: 600; }
+  .pp-label { font-size: 11px; color: var(--text-secondary); }
 
   /* ── Chatbot Styles (right pane) ──────────────────────────── */
   .chat-fab { display: none; /* hidden in split layout */ }
@@ -213,31 +226,20 @@
   <p>輸入客戶 ID，AI 將自動分析客戶 Persona、通話歷史與會員卡權益，生成個人化推薦話術</p>
 </div>
 
+<!-- Pipeline Toggle Panel -->
+<div id="pipelineBar" style="display:none;"></div>
+
 <div class="main-layout">
 <div class="left-pane">
 <div class="container">
-  <!-- Input -->
+  <!-- Input: customer ID + generate button (always visible) -->
   <div class="input-section">
     <div class="input-row">
       <div class="input-group">
         <label>客戶 ID (Customer ID)</label>
         <input type="text" id="customerId" placeholder="例：26568707" value="26568707">
       </div>
-      <div class="input-group">
-        <label>API Endpoint</label>
-        <input type="text" id="apiEndpoint" style="width:380px" value="">
-      </div>
       <button class="btn btn-primary" id="btnGenerate" onclick="generate()">生成推薦話術</button>
-    </div>
-    <div class="input-row" style="margin-top: 12px;">
-      <div class="input-group">
-        <label>Step 2 查詢生成模型 <span class="model-hint">(QUERY_GEN)</span></label>
-        <select id="queryGenModel"><option value="">載入中...</option></select>
-      </div>
-      <div class="input-group">
-        <label>Step 3 推薦話術模型 <span class="model-hint">(RECOMMENDATION)</span></label>
-        <select id="recModel"><option value="">載入中...</option></select>
-      </div>
     </div>
   </div>
 
@@ -247,22 +249,71 @@
     <span id="statusText"></span>
   </div>
 
-  <!-- Results -->
-  <div id="resultArea" style="display:none">
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab('recommendation')">📋 推薦話術</div>
-      <div class="tab" onclick="switchTab('debug')">🔧 Debug 資訊</div>
-      <div class="tab" onclick="switchTab('raw')">📄 原始 JSON</div>
+  <!-- Top-level Tabs (always visible) -->
+  <div class="tabs" id="mainTabs">
+    <div class="tab active" onclick="switchMainTab('recommendation')">📋 推薦話術</div>
+    <div class="tab" onclick="switchMainTab('insights')">📞 通話分析</div>
+    <div class="tab" onclick="switchMainTab('debug')">🔧 Debug</div>
+    <div class="tab" onclick="switchMainTab('raw')">📄 JSON</div>
+    <div class="tab" onclick="switchMainTab('settings')">⚙️ 參數設定</div>
+  </div>
+
+  <!-- Tab: Recommendation -->
+  <div class="tab-content active" id="tab-recommendation">
+    <p style="color:var(--text-secondary)">請輸入客戶 ID 並點擊「生成推薦話術」</p>
+  </div>
+
+  <!-- Tab: Call Insights -->
+  <div class="tab-content" id="tab-insights">
+    <p style="color:var(--text-secondary)">生成推薦話術後會自動載入通話分析，或切換到此 Tab 手動載入。</p>
+    <div class="status-bar" id="insightsStatusBar">
+      <div class="spinner" id="insightsSpinner"></div>
+      <span id="insightsStatusText"></span>
     </div>
+    <div id="insightsResultArea"></div>
+  </div>
 
-    <!-- Tab: Recommendation -->
-    <div class="tab-content active" id="tab-recommendation"></div>
+  <!-- Tab: Debug -->
+  <div class="tab-content" id="tab-debug">
+    <p style="color:var(--text-secondary)">尚無 Debug 資訊</p>
+  </div>
 
-    <!-- Tab: Debug -->
-    <div class="tab-content" id="tab-debug"></div>
+  <!-- Tab: Raw JSON -->
+  <div class="tab-content" id="tab-raw">
+    <p style="color:var(--text-secondary)">尚無原始 JSON</p>
+  </div>
 
-    <!-- Tab: Raw JSON -->
-    <div class="tab-content" id="tab-raw"></div>
+  <!-- Tab: Settings -->
+  <div class="tab-content" id="tab-settings">
+    <div class="settings-section">
+      <h3>🔗 API 設定</h3>
+      <div class="settings-row">
+        <div class="input-group">
+          <label>API Endpoint</label>
+          <input type="text" id="apiEndpoint" style="width:420px" value="">
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>🤖 模型選擇</h3>
+      <div class="settings-row">
+        <div class="input-group">
+          <label>Step 2 查詢生成模型 <span class="model-hint">(QUERY_GEN)</span></label>
+          <select id="queryGenModel"><option value="">載入中...</option></select>
+        </div>
+        <div class="input-group">
+          <label>Step 3 推薦話術模型 <span class="model-hint">(RECOMMENDATION)</span></label>
+          <select id="recModel"><option value="">載入中...</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3>⚙️ Pipeline 排程控制</h3>
+      <div class="pp-cards" id="ppCards">
+        <span style="color:var(--text-secondary);font-size:13px;">載入中...</span>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:var(--text-secondary);" id="ppStatus"></div>
+    </div>
   </div>
 </div>
 
@@ -279,14 +330,9 @@ const STEP_COLORS = ['#4285f4','#34a853','#fbbc04','#ea4335'];
 // Auto-detect endpoint on load
 (function() {
   const loc = window.location;
-  // If served from the orchestrator itself, use relative path
-  if (loc.pathname.includes('/demo')) {
-    document.getElementById('apiEndpoint').value = loc.origin + '/sales/recommendation';
-  } else {
-    document.getElementById('apiEndpoint').value = loc.origin + '/sales/recommendation';
-  }
-  // Load available models
+  document.getElementById('apiEndpoint').value = loc.origin + '/sales/recommendation';
   loadModels();
+  refreshPipelines();
 })();
 
 async function loadModels() {
@@ -334,7 +380,7 @@ async function generate() {
   btn.disabled = true;
 
   showStatus('loading', `正在為客戶 ${customerId} 生成推薦話術，GPT-5.2 推理模型需要較長時間，請耐心等待...`);
-  document.getElementById('resultArea').style.display = 'none';
+  switchMainTab('recommendation');
 
   const startTime = Date.now();
   const timer = setInterval(() => {
@@ -377,8 +423,11 @@ async function generate() {
     renderDebug(data);
     renderRaw(data);
 
-    document.getElementById('resultArea').style.display = 'block';
-    switchTab('recommendation');
+    switchMainTab('recommendation');
+
+    // Trigger background insights loading
+    insightsLoadedFor = null;
+    loadInsights(customerId);
   } catch (err) {
     clearInterval(timer);
     showStatus('error', `請求失敗: ${err.message}`);
@@ -396,15 +445,17 @@ function showStatus(type, msg) {
   text.textContent = msg;
 }
 
-function switchTab(name) {
-  document.querySelectorAll('.tab').forEach((t, i) => {
-    const names = ['recommendation','debug','raw'];
-    t.classList.toggle('active', names[i] === name);
+function switchMainTab(name) {
+  const tabNames = ['recommendation','insights','debug','raw','settings'];
+  document.querySelectorAll('#mainTabs .tab').forEach((t, i) => {
+    t.classList.toggle('active', tabNames[i] === name);
   });
-  document.querySelectorAll('.tab-content').forEach((c, i) => {
-    const names = ['recommendation','debug','raw'];
-    c.classList.toggle('active', names[i] === name);
+  tabNames.forEach(n => {
+    const el = document.getElementById('tab-' + n);
+    if (el) el.classList.toggle('active', n === name);
   });
+  if (name === 'settings') refreshPipelines();
+  if (name === 'insights') loadInsightsIfNeeded();
 }
 
 function esc(s) {
@@ -458,19 +509,18 @@ function renderRecommendation(data) {
     `, true);
   }
 
-  // Membership Suitability Assessment
+  // Membership Suitability Assessment — 推薦難度
   const suit = rec.membership_suitability;
   if (suit) {
-    const isSuitable = suit.is_suitable;
-    const conf = (suit.confidence || '').trim();
+    const diff = (suit.recommendation_difficulty || '').trim();
     let badgeClass = 'mid';
-    if (conf === '高') badgeClass = 'high';
-    else if (conf === '低') badgeClass = 'low';
-    html += buildCollapsible(`${isSuitable ? '✅' : '❌'} 會員卡推銷適合度評估`, `
-      <div class="suitability-card ${isSuitable ? 'suitable' : 'not-suitable'}">
+    if (diff === '低')  badgeClass = 'high';
+    else if (diff === '高') badgeClass = 'low';
+    html += buildCollapsible('推薦難度評估', `
+      <div class="suitability-card">
         <div class="suitability-verdict">
-          ${isSuitable ? '✅ 適合推銷' : '❌ 不建議推銷'}
-          <span class="badge ${badgeClass}">信心度：${esc(conf)}</span>
+          推薦難度
+          <span class="badge ${badgeClass}">${esc(diff)}</span>
         </div>
         <div style="font-size:14px;margin-bottom:10px">${esc(suit.verdict || '')}</div>
         <div class="suitability-factors">
@@ -790,6 +840,187 @@ async function chatSend() {
 
 function chatKeydown(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); }
+}
+
+// ── Pipeline Controls (Settings Tab) ────────────────────────────
+const PP_API = window.location.origin + '/api/pipelines';
+let ppRetryCount = 0;
+
+async function refreshPipelines() {
+  const el = document.getElementById('ppCards');
+  const st = document.getElementById('ppStatus');
+  try {
+    const r = await fetch(PP_API, { headers: { 'dapr-api-token': 'dev-token' } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    ppRetryCount = 0;
+    let html = '';
+    for (const [gid, g] of Object.entries(data)) {
+      const on = !g.paused;
+      const hasJobs = g.jobs && g.jobs.length > 0;
+      const dotColor = !hasJobs ? '#ccc' : on ? '#34a853' : '#ea8600';
+      const label = on ? '運行中' : '已暫停';
+      html += `<div class="pp-card">
+        <span class="pp-dot" style="background:${dotColor}"></span>
+        <span class="pp-name">${esc(g.name)}</span>
+        <span class="pp-label">${label}</span>
+        <label style="position:relative;width:36px;height:20px;flex-shrink:0;cursor:pointer;">
+          <input type="checkbox" ${on?'checked':''} ${!hasJobs?'disabled':''} onchange="ppToggle('${gid}',this)" style="opacity:0;width:0;height:0;">
+          <span style="position:absolute;inset:0;background:${on?'var(--primary)':'#ccc'};border-radius:20px;transition:.25s;"></span>
+          <span style="position:absolute;height:14px;width:14px;left:${on?'19px':'3px'};bottom:3px;background:white;border-radius:50%;transition:.25s;"></span>
+        </label>
+      </div>`;
+    }
+    el.innerHTML = html || '<span style="color:var(--text-secondary);font-size:13px;">無 Pipeline 資料</span>';
+    st.textContent = '最後更新: ' + new Date().toLocaleTimeString('zh-TW');
+  } catch (e) {
+    ppRetryCount++;
+    const willRetry = ppRetryCount < 10;
+    el.innerHTML = `<span style="color:var(--warning);font-size:13px;">⏳ Ingestion 服務連線中... (${ppRetryCount}/10)${willRetry ? '' : ' 請稍後重試'}</span>`;
+    st.textContent = e.message;
+    if (willRetry) setTimeout(refreshPipelines, 10000);
+  }
+}
+
+async function ppToggle(gid, el) {
+  el.disabled = true;
+  try {
+    const r = await fetch(`${PP_API}/${gid}/toggle`, { method: 'POST', headers: { 'dapr-api-token': 'dev-token' } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+  } catch (e) {
+    alert('操作失敗: ' + e.message);
+  }
+  await refreshPipelines();
+}
+
+// ── Call Insights (通話分析) ─────────────────────────────────────
+let insightsLoadedFor = null;
+
+function loadInsightsIfNeeded() {
+  const customerId = document.getElementById('customerId').value.trim();
+  if (!customerId || insightsLoadedFor === customerId) return;
+  loadInsights(customerId);
+}
+
+async function loadInsights(customerId) {
+  if (!customerId) return;
+  const bar = document.getElementById('insightsStatusBar');
+  const spinner = document.getElementById('insightsSpinner');
+  const text = document.getElementById('insightsStatusText');
+  bar.className = 'status-bar loading';
+  spinner.style.display = 'block';
+  text.textContent = `正在載入客戶 ${customerId} 的通話分析...`;
+  document.getElementById('insightsResultArea').innerHTML = '';
+
+  try {
+    const url = window.location.origin + `/sales/insights/${encodeURIComponent(customerId)}`;
+    const resp = await fetch(url, { headers: { 'dapr-api-token': 'dev-token' } });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+    const data = await resp.json();
+    insightsLoadedFor = customerId;
+
+    bar.className = 'status-bar success';
+    spinner.style.display = 'none';
+    const total = data.total_matched || 0;
+    text.textContent = `✅ 找到 ${total} 筆通話分析 (${data.success?.length || 0} 成功 / ${data.failure?.length || 0} 失敗)`;
+
+    renderInsights(data);
+  } catch (err) {
+    bar.className = 'status-bar error';
+    spinner.style.display = 'none';
+    text.textContent = `載入失敗: ${err.message}`;
+  }
+}
+
+function renderInsights(data) {
+  const el = document.getElementById('insightsResultArea');
+  let html = '';
+
+  const allAnalyses = [
+    ...(data.success || []).map(a => ({ ...a, _cat: '成功' })),
+    ...(data.failure || []).map(a => ({ ...a, _cat: '失敗' })),
+  ];
+
+  if (!allAnalyses.length) {
+    el.innerHTML = '<p style="color:var(--text-secondary);margin-top:16px;">此客戶尚無通話分析紀錄。</p>';
+    return;
+  }
+
+  for (const a of allAnalyses) {
+    const catIcon = a._cat === '成功' ? '✅' : '❌';
+    let body = '';
+
+    // Summary
+    if (a.summary) {
+      body += `<div class="profile-summary">${esc(a.summary)}</div>`;
+    }
+    body += `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">判斷依據：${esc(a.result_reason || '')}</div>`;
+
+    // Customer profile
+    const prof = a.customer_profile;
+    if (prof) {
+      body += '<div style="margin-bottom:12px;">';
+      body += `<strong>客戶態度：</strong>${esc(prof.attitude || '')}`;
+      if (prof.concerns?.length) body += `<br><strong>顧慮：</strong>${prof.concerns.map(c => esc(c)).join('、')}`;
+      if (prof.interests?.length) body += `<br><strong>興趣：</strong>${prof.interests.map(c => esc(c)).join('、')}`;
+      body += '</div>';
+    }
+
+    // Key factors
+    if (a.key_factors?.length) {
+      body += '<div style="margin-bottom:12px;"><strong>關鍵因素</strong><ul style="margin:4px 0;padding-left:20px;">';
+      for (const f of a.key_factors) {
+        const icon = f.type === '正面' ? '🟢' : '🔴';
+        body += `<li>${icon} <strong>${esc(f.factor)}</strong>：${esc(f.description)}</li>`;
+      }
+      body += '</ul></div>';
+    }
+
+    // Effective strategies
+    if (a.effective_strategies?.length) {
+      body += '<div style="margin-bottom:12px;"><strong>話術策略</strong>';
+      for (const s of a.effective_strategies) {
+        body += `<div class="objection-item">
+          <div class="objection-q">📌 ${esc(s.strategy)}</div>
+          ${s.example_quote ? `<div style="font-style:italic;color:var(--text-secondary);margin:4px 0;">「${esc(s.example_quote)}」</div>` : ''}
+          <div class="objection-a">${esc(s.why_effective)}</div>
+        </div>`;
+      }
+      body += '</div>';
+    }
+
+    // Recommended scripts
+    if (a.recommended_scripts?.length) {
+      body += '<div style="margin-bottom:12px;"><strong>推薦話術</strong>';
+      for (const sc of a.recommended_scripts) {
+        body += `<div class="script-block">
+          <div class="script-label">${esc(sc.scenario)}</div>
+          <div class="script-text">${esc(sc.script)}</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${esc(sc.rationale)}</div>
+        </div>`;
+      }
+      body += '</div>';
+    }
+
+    // Improvement suggestions (failure only)
+    if (a.improvement_suggestions?.length) {
+      body += '<div style="margin-bottom:12px;"><strong>改善建議</strong><ul style="margin:4px 0;padding-left:20px;">';
+      for (const s of a.improvement_suggestions) {
+        body += `<li>${esc(s)}</li>`;
+      }
+      body += '</ul></div>';
+    }
+
+    html += buildCollapsible(`${catIcon} 通話 ${esc(a.call_id)} — ${a._cat}`, body, allAnalyses.length <= 3);
+  }
+
+  el.innerHTML = html;
+  el.querySelectorAll('.collapsible-header').forEach(hdr => {
+    hdr.addEventListener('click', () => {
+      hdr.classList.toggle('open');
+      hdr.nextElementSibling.classList.toggle('open');
+    });
+  });
 }
 </script>
 

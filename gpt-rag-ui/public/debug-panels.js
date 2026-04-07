@@ -684,3 +684,168 @@
     }, 500);
 
 })();
+
+// =============================================================================
+// Pipeline Admin Panel — always available via floating ⚙️ button
+// =============================================================================
+(function() {
+    'use strict';
+
+    const PIPELINE_API = '/api/admin/pipelines';
+    let panelOpen = false;
+
+    function injectStyles() {
+        if (document.getElementById('pipeline-admin-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'pipeline-admin-styles';
+        style.textContent = `
+            #pipeline-fab{position:fixed;bottom:24px;left:24px;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.25);z-index:10001;display:flex;align-items:center;justify-content:center;transition:transform .2s}
+            #pipeline-fab:hover{transform:scale(1.1)}
+            #pipeline-panel{position:fixed;bottom:80px;left:24px;width:360px;max-height:480px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:10001;display:none;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#1a1a2e}
+            #pipeline-panel.open{display:block}
+            .pp-header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+            .pp-header h3{margin:0;font-size:15px;font-weight:600}
+            .pp-close{background:none;border:none;color:rgba(255,255,255,.8);font-size:18px;cursor:pointer;padding:0 4px}
+            .pp-close:hover{color:#fff}
+            .pp-body{padding:12px 16px;max-height:380px;overflow-y:auto}
+            .pp-card{background:#f7f8fa;border-radius:8px;padding:14px;margin-bottom:10px}
+            .pp-card:last-child{margin-bottom:0}
+            .pp-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+            .pp-card-title{font-weight:600;font-size:13px}
+            .pp-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+            .pp-badge.active{background:#d4edda;color:#155724}
+            .pp-badge.paused{background:#fff3cd;color:#856404}
+            .pp-badge.offline{background:#f0f0f0;color:#888}
+            .pp-switch{position:relative;width:44px;height:24px;flex-shrink:0}
+            .pp-switch input{opacity:0;width:0;height:0}
+            .pp-slider{position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.25s}
+            .pp-slider::before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.25s}
+            .pp-switch input:checked+.pp-slider{background:#667eea}
+            .pp-switch input:checked+.pp-slider::before{transform:translateX(20px)}
+            .pp-switch input:disabled+.pp-slider{opacity:.45;cursor:not-allowed}
+            .pp-jobs{margin-top:8px;border-top:1px solid #e0e0e0;padding-top:8px}
+            .pp-job{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#555;padding:3px 0}
+            .pp-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px}
+            .pp-dot.on{background:#28a745}
+            .pp-dot.off{background:#ffc107}
+            .pp-job-next{color:#999;font-size:11px}
+            .pp-loading{text-align:center;padding:24px;color:#999}
+            .pp-err{background:#fff5f5;border:1px solid #fed7d7;border-radius:8px;padding:12px;color:#c53030;font-size:13px;text-align:center}
+            .pp-toast{position:fixed;bottom:80px;left:100px;padding:8px 16px;border-radius:6px;color:#fff;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:10002}
+            .pp-toast.show{opacity:1}
+            .pp-toast.ok{background:#28a745}
+            .pp-toast.fail{background:#dc3545}
+        `;
+        document.head.appendChild(style);
+    }
+
+    function createDOM() {
+        if (document.getElementById('pipeline-fab')) return;
+        // FAB button
+        const fab = document.createElement('button');
+        fab.id = 'pipeline-fab';
+        fab.title = 'Pipeline 管理';
+        fab.textContent = '⚙️';
+        fab.addEventListener('click', togglePanel);
+        document.body.appendChild(fab);
+
+        // Panel
+        const panel = document.createElement('div');
+        panel.id = 'pipeline-panel';
+        panel.innerHTML = `
+            <div class="pp-header">
+                <h3>⚙️ Pipeline 管理</h3>
+                <button class="pp-close" onclick="document.getElementById('pipeline-panel').classList.remove('open')">&times;</button>
+            </div>
+            <div class="pp-body" id="pp-body"><div class="pp-loading">載入中...</div></div>
+        `;
+        document.body.appendChild(panel);
+
+        // Toast
+        const toast = document.createElement('div');
+        toast.className = 'pp-toast';
+        toast.id = 'pp-toast';
+        document.body.appendChild(toast);
+    }
+
+    function togglePanel() {
+        const p = document.getElementById('pipeline-panel');
+        if (!p) return;
+        panelOpen = !p.classList.contains('open');
+        p.classList.toggle('open');
+        if (panelOpen) refreshPipelines();
+    }
+
+    function showToast(msg, ok) {
+        const t = document.getElementById('pp-toast');
+        if (!t) return;
+        t.textContent = msg;
+        t.className = 'pp-toast show ' + (ok ? 'ok' : 'fail');
+        setTimeout(() => t.className = 'pp-toast', 2200);
+    }
+
+    async function refreshPipelines() {
+        const body = document.getElementById('pp-body');
+        if (!body) return;
+        try {
+            const res = await fetch(PIPELINE_API);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            renderCards(data);
+        } catch (e) {
+            body.innerHTML = '<div class="pp-err">無法連線到 Ingestion 服務<br><small>請確認 INGESTION_BASE_URL 已設定</small></div>';
+        }
+    }
+
+    function renderCards(data) {
+        const body = document.getElementById('pp-body');
+        if (!body) return;
+        let html = '';
+        for (const [gid, g] of Object.entries(data)) {
+            const hasJobs = g.jobs && g.jobs.length > 0;
+            const paused = g.paused;
+            const badgeCls = !hasJobs ? 'offline' : paused ? 'paused' : 'active';
+            const badgeTxt = !hasJobs ? '未排程' : paused ? '已暫停' : '運行中';
+            const jobsHtml = hasJobs ? '<div class="pp-jobs">' + g.jobs.map(j => {
+                const dotCls = j.paused ? 'off' : 'on';
+                const next = j.next_run ? new Date(j.next_run).toLocaleString('zh-TW') : '—';
+                return `<div class="pp-job"><span><span class="pp-dot ${dotCls}"></span>${j.id}</span><span class="pp-job-next">${next}</span></div>`;
+            }).join('') + '</div>' : '';
+
+            html += `<div class="pp-card">
+                <div class="pp-card-head">
+                    <div><div class="pp-card-title">${g.name}</div><span class="pp-badge ${badgeCls}">${badgeTxt}</span></div>
+                    <label class="pp-switch"><input type="checkbox" data-gid="${gid}" ${!paused?'checked':''} ${!hasJobs?'disabled':''} onchange="window._ppToggle('${gid}',this)"><span class="pp-slider"></span></label>
+                </div>${jobsHtml}</div>`;
+        }
+        body.innerHTML = html;
+    }
+
+    window._ppToggle = async function(gid, el) {
+        el.disabled = true;
+        try {
+            const res = await fetch(`${PIPELINE_API}/${gid}/toggle`, { method: 'POST' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const d = await res.json();
+            showToast(d.paused ? '已暫停 ' + gid : '已啟用 ' + gid, true);
+        } catch (e) {
+            showToast('操作失敗: ' + e.message, false);
+        }
+        await refreshPipelines();
+    };
+
+    // Periodically refresh while panel is open
+    setInterval(() => {
+        if (document.getElementById('pipeline-panel')?.classList.contains('open')) {
+            refreshPipelines();
+        }
+    }, 15000);
+
+    // Init when DOM ready
+    function init() { injectStyles(); createDOM(); }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-benchmark_sales_recommendation.py — 比較兩種模型組合的銷售推薦效能
-==================================================================
+benchmark_sales_recommendation.py — 銷售推薦模型效能基準測試
+============================================================
 
-組合 1: RAG Query GPT-5-nano + 推薦話術 GPT-5.2
-組合 2: RAG Query GPT-5-nano + 推薦話術 GPT-5-nano
+固定 RAG Query 生成模型為 GPT-5.4-nano，比較推薦話術模型：
+  GPT-5.2 / GPT-5.4 / GPT-5.4-nano
 
-每組執行 10 次，記錄回應時間、token 用量、成本，並輸出 markdown 報告。
+每組執行 10 次，排除第一次（冷啟動），取後 9 次平均值。
+記錄回應時間、token 用量、成本，並輸出 markdown 報告。
 
 使用方法：
   python scripts/benchmark_sales_recommendation.py
@@ -29,38 +30,51 @@ SALES_REC_URL = f"{BASE_URL}/sales/recommendation"
 API_KEY = "X1B4Zz5gehH0iuoS6EROyDwdVAP3FJYb"
 CUSTOMER_ID = "26568707"
 RUNS_PER_COMBO = 10
+WARMUP_RUNS = 1  # 排除前 N 次（冷啟動）
 
-# Token pricing (USD per 1K tokens)
+# 固定 RAG Query 生成模型
+QUERY_GEN_DEPLOYMENT = "gpt-5.4-nano"
+
+# Token pricing (USD per 1M tokens) — Azure OpenAI Global Standard
 PRICING = {
-    "gpt-52":      {"input": 0.025, "output": 0.100},
-    "gpt-5-nano":  {"input": 0.001, "output": 0.004},
-    "gpt-5-mini":  {"input": 0.005, "output": 0.020},
+    "chat":          {"input": 1.75, "output": 14.0},    # GPT-5.2 (deployment name: chat)
+    "gpt-52":        {"input": 1.75, "output": 14.0},    # GPT-5.2
+    "gpt-5.4":       {"input": 1.75, "output": 14.0},    # GPT-5.4 (same tier as GPT-5.2)
+    "gpt-5.4-nano":  {"input": 0.05, "output": 0.40},    # GPT-5.4-nano
+    "gpt-5-nano":    {"input": 0.05, "output": 0.40},    # GPT-5-nano
+    "gpt-5-mini":    {"input": 0.25, "output": 2.0},     # GPT-5-mini
 }
 
-# Two combinations to test
+# 推薦話術模型組合
 COMBOS = [
     {
-        "name": "組合1: RAG Query GPT-5-nano + 推薦話術 GPT-5.2",
-        "short": "nano+5.2",
-        "query_gen_deployment": "gpt-5-nano",
-        "model_deployment": "gpt-52",
+        "name": "推薦話術 GPT-5.2",
+        "short": "GPT-5.2",
+        "query_gen_deployment": QUERY_GEN_DEPLOYMENT,
+        "model_deployment": "chat",
     },
     {
-        "name": "組合2: RAG Query GPT-5-nano + 推薦話術 GPT-5-nano",
-        "short": "nano+nano",
-        "query_gen_deployment": "gpt-5-nano",
-        "model_deployment": "gpt-5-nano",
+        "name": "推薦話術 GPT-5.4",
+        "short": "GPT-5.4",
+        "query_gen_deployment": QUERY_GEN_DEPLOYMENT,
+        "model_deployment": "gpt-5.4",
+    },
+    {
+        "name": "推薦話術 GPT-5.4-nano",
+        "short": "GPT-5.4-nano",
+        "query_gen_deployment": QUERY_GEN_DEPLOYMENT,
+        "model_deployment": "gpt-5.4-nano",
     },
 ]
 
 
 def calc_cost(usage: dict, model: str) -> float:
-    """Calculate USD cost from token usage and model name."""
+    """Calculate USD cost from token usage and model name. Pricing is per 1M tokens."""
     if not usage or model not in PRICING:
         return 0.0
     p = PRICING[model]
-    input_cost = (usage.get("prompt_tokens", 0) / 1000) * p["input"]
-    output_cost = (usage.get("completion_tokens", 0) / 1000) * p["output"]
+    input_cost = (usage.get("prompt_tokens", 0) / 1_000_000) * p["input"]
+    output_cost = (usage.get("completion_tokens", 0) / 1_000_000) * p["output"]
     return input_cost + output_cost
 
 
@@ -141,18 +155,9 @@ async def run_single(client: httpx.AsyncClient, combo: dict, run_idx: int) -> di
             "rec_cost_usd": round(rec_cost, 6),
             "qg_estimated_cost_usd": round(qg_estimated_cost, 6),
             "total_cost_usd": round(total_cost, 6),
-            "recommendation_summary": "",
             "success": True,
             "error": None,
         }
-
-        # Extract a short summary from recommendation
-        if isinstance(rec, dict):
-            summary = rec.get("customer_profile_summary", "")
-            if not summary:
-                summary = rec.get("raw_response", "")[:200] if rec.get("raw_response") else ""
-            result["recommendation_summary"] = summary[:300]
-            result["recommendation_full"] = rec
 
         print(f" {wall_seconds:.1f}s, tokens={rec_usage.get('total_tokens', '?')}, cost=${total_cost:.4f}")
         return result
@@ -172,8 +177,6 @@ async def run_single(client: httpx.AsyncClient, combo: dict, run_idx: int) -> di
             "rec_cost_usd": 0,
             "qg_estimated_cost_usd": 0,
             "total_cost_usd": 0,
-            "recommendation_summary": "",
-            "recommendation_full": {},
             "success": False,
             "error": str(exc),
         }
@@ -186,39 +189,43 @@ def generate_markdown(all_results: dict, start_time: str) -> str:
     lines.append("")
     lines.append(f"> 測試日期：{start_time}")
     lines.append(f"> 客戶編號：{CUSTOMER_ID}")
-    lines.append(f"> 每組執行次數：{RUNS_PER_COMBO}")
+    lines.append(f"> 每組執行次數：{RUNS_PER_COMBO}（排除前 {WARMUP_RUNS} 次冷啟動，取後 {RUNS_PER_COMBO - WARMUP_RUNS} 次平均）")
+    lines.append(f"> RAG Query 生成模型：`{QUERY_GEN_DEPLOYMENT}`（固定）")
     lines.append("")
-    lines.append("## 模型定價參考")
+    lines.append("## 模型定價參考（USD per 1M tokens, Global Standard）")
     lines.append("")
-    lines.append("| 模型 | Input ($/1K tokens) | Output ($/1K tokens) |")
-    lines.append("|------|-------------------|---------------------|")
-    lines.append("| GPT-5.2 | $0.025 | $0.100 |")
-    lines.append("| GPT-5-nano | $0.001 | $0.004 |")
+    lines.append("| 模型 | Input | Output |")
+    lines.append("|------|-------|--------|")
+    for name, p in PRICING.items():
+        lines.append(f"| {name} | ${p['input']:.2f} | ${p['output']:.2f} |")
     lines.append("")
 
     for combo_key, combo_data in all_results.items():
         combo_info = combo_data["combo"]
         results = combo_data["results"]
         successful = [r for r in results if r["success"]]
-        failed = [r for r in results if not r["success"]]
+        # Split warmup vs measured
+        warmup = successful[:WARMUP_RUNS]
+        measured = successful[WARMUP_RUNS:]
 
         lines.append(f"---")
         lines.append("")
         lines.append(f"## {combo_info['name']}")
         lines.append("")
-        lines.append(f"- **RAG Query 模型**：`{combo_info['query_gen_deployment']}`")
         lines.append(f"- **推薦話術模型**：`{combo_info['model_deployment']}`")
         lines.append(f"- **成功次數**：{len(successful)}/{len(results)}")
+        lines.append(f"- **統計樣本**：{len(measured)} 次（排除第 1 次冷啟動）")
         lines.append("")
 
-        # Summary table
+        # Detail table
         lines.append("### 每次執行結果")
         lines.append("")
-        lines.append("| # | 總時間(s) | 推薦LLM時間(s) | Prompt Tokens | Completion Tokens | Total Tokens | 推薦成本($) | 總成本($) | 狀態 |")
-        lines.append("|---|----------|---------------|---------------|-------------------|--------------|------------|----------|------|")
+        lines.append("| # | 總時間(s) | 推薦LLM(s) | Prompt Tokens | Completion Tokens | Total Tokens | 成本($) | 備註 |")
+        lines.append("|---|----------|-----------|---------------|-------------------|--------------|--------|------|")
 
         for r in results:
-            status = "OK" if r["success"] else f"FAIL {r.get('error', '')[:30]}"
+            is_warmup = r["run"] <= WARMUP_RUNS and r["success"]
+            note = "🔥 冷啟動" if is_warmup else ("FAIL" if not r["success"] else "")
             lines.append(
                 f"| {r['run']} "
                 f"| {r['total_seconds']:.2f} "
@@ -226,26 +233,18 @@ def generate_markdown(all_results: dict, start_time: str) -> str:
                 f"| {r['prompt_tokens']:,} "
                 f"| {r['completion_tokens']:,} "
                 f"| {r['total_tokens']:,} "
-                f"| ${r['rec_cost_usd']:.4f} "
                 f"| ${r['total_cost_usd']:.4f} "
-                f"| {status} |"
+                f"| {note} |"
             )
 
-        # Averages
-        if successful:
-            avg_total_time = sum(r["total_seconds"] for r in successful) / len(successful)
-            avg_rec_time = sum(r["recommendation_seconds"] for r in successful) / len(successful)
-            avg_prompt = sum(r["prompt_tokens"] for r in successful) / len(successful)
-            avg_completion = sum(r["completion_tokens"] for r in successful) / len(successful)
-            avg_total_tokens = sum(r["total_tokens"] for r in successful) / len(successful)
-            avg_rec_cost = sum(r["rec_cost_usd"] for r in successful) / len(successful)
-            avg_total_cost = sum(r["total_cost_usd"] for r in successful) / len(successful)
-            total_cost_sum = sum(r["total_cost_usd"] for r in successful)
-
-            min_time = min(r["total_seconds"] for r in successful)
-            max_time = max(r["total_seconds"] for r in successful)
-            min_cost = min(r["total_cost_usd"] for r in successful)
-            max_cost = max(r["total_cost_usd"] for r in successful)
+        # Averages (measured only)
+        if measured:
+            avg_total_time = sum(r["total_seconds"] for r in measured) / len(measured)
+            avg_rec_time = sum(r["recommendation_seconds"] for r in measured) / len(measured)
+            avg_prompt = sum(r["prompt_tokens"] for r in measured) / len(measured)
+            avg_completion = sum(r["completion_tokens"] for r in measured) / len(measured)
+            avg_total_tokens = sum(r["total_tokens"] for r in measured) / len(measured)
+            avg_total_cost = sum(r["total_cost_usd"] for r in measured) / len(measured)
 
             lines.append(
                 f"| **平均** "
@@ -254,13 +253,17 @@ def generate_markdown(all_results: dict, start_time: str) -> str:
                 f"| **{avg_prompt:,.0f}** "
                 f"| **{avg_completion:,.0f}** "
                 f"| **{avg_total_tokens:,.0f}** "
-                f"| **${avg_rec_cost:.4f}** "
                 f"| **${avg_total_cost:.4f}** "
-                f"| - |"
+                f"| 排除冷啟動 |"
             )
 
+            min_time = min(r["total_seconds"] for r in measured)
+            max_time = max(r["total_seconds"] for r in measured)
+            min_cost = min(r["total_cost_usd"] for r in measured)
+            max_cost = max(r["total_cost_usd"] for r in measured)
+
             lines.append("")
-            lines.append("### 統計摘要")
+            lines.append("### 統計摘要（排除冷啟動）")
             lines.append("")
             lines.append(f"| 指標 | 值 |")
             lines.append(f"|------|-----|")
@@ -271,118 +274,69 @@ def generate_markdown(all_results: dict, start_time: str) -> str:
             lines.append(f"| 平均 Completion Tokens | {avg_completion:,.0f} |")
             lines.append(f"| 平均每次成本 | **${avg_total_cost:.4f}** |")
             lines.append(f"| 最低 / 最高單次成本 | ${min_cost:.4f} / ${max_cost:.4f} |")
-            lines.append(f"| {len(successful)} 次成功總成本 | **${total_cost_sum:.4f}** |")
+            lines.append(f"| {len(measured)} 次總成本 | **${sum(r['total_cost_usd'] for r in measured):.4f}** |")
 
-        # Response content for each run
         lines.append("")
-        lines.append("### 每次回應內容摘要")
-        lines.append("")
-        for r in results:
-            lines.append(f"#### 第 {r['run']} 次")
-            lines.append("")
-            if not r["success"]:
-                lines.append(f"**失敗**：{r.get('error', 'Unknown error')}")
-                lines.append("")
-                continue
 
-            rec = r.get("recommendation_full", {})
-            if isinstance(rec, dict):
-                # Customer summary
-                summary = rec.get("customer_profile_summary", "N/A")
-                lines.append(f"**客戶摘要**：{summary}")
-                lines.append("")
-
-                # Suitability
-                suit = rec.get("membership_suitability", {})
-                if suit:
-                    lines.append(f"**適合度判斷**：{'適合' if suit.get('is_suitable') else '不適合'} (信心: {suit.get('confidence', 'N/A')})")
-                    verdict = suit.get("verdict", "")
-                    if verdict:
-                        lines.append(f"  - {verdict}")
-                    lines.append("")
-
-                # Recommended plan
-                plan = rec.get("recommended_membership_plan", {})
-                if plan and plan.get("plan_name"):
-                    lines.append(f"**推薦方案**：{plan.get('plan_name', 'N/A')}")
-                    lines.append(f"  - 理由：{plan.get('reason', 'N/A')}")
-                    lines.append("")
-
-                # Success probability
-                prob = rec.get("success_probability", "")
-                if prob:
-                    lines.append(f"**成功機率**：{prob}")
-                    lines.append("")
-
-                # Opening script (brief)
-                script = rec.get("sales_script", {})
-                if script:
-                    opening = script.get("opening", "")
-                    if opening:
-                        lines.append(f"**開場白**：{opening[:200]}{'...' if len(opening) > 200 else ''}")
-                        lines.append("")
-
-                # Taboos
-                taboos = rec.get("taboos", [])
-                if taboos:
-                    lines.append(f"**禁忌**：{', '.join(str(t) for t in taboos[:3])}")
-                    lines.append("")
-            else:
-                lines.append(f"回應：{str(rec)[:500]}")
-                lines.append("")
-
-    # Cross-combo comparison
+    # Cross-combo comparison (measured only)
     combo_keys = list(all_results.keys())
     if len(combo_keys) >= 2:
         lines.append("---")
         lines.append("")
-        lines.append("## 兩組對比總結")
+        lines.append("## 各模型對比總結（排除冷啟動）")
         lines.append("")
-        lines.append("| 指標 | 組合1 (nano+5.2) | 組合2 (nano+nano) | 差異 |")
-        lines.append("|------|-----------------|------------------|------|")
 
-        for metric_name, metric_key, fmt, unit in [
+        header_cols = ["指標"]
+        sep_cols = ["------"]
+        for ck in combo_keys:
+            label = all_results[ck]["combo"]["short"]
+            header_cols.append(label)
+            sep_cols.append("------")
+        lines.append("| " + " | ".join(header_cols) + " |")
+        lines.append("| " + " | ".join(sep_cols) + " |")
+
+        metrics = [
             ("平均總時間", "avg_total_time", ".2f", "秒"),
             ("平均推薦LLM時間", "avg_rec_time", ".2f", "秒"),
             ("平均 Prompt Tokens", "avg_prompt", ",.0f", ""),
             ("平均 Completion Tokens", "avg_completion", ",.0f", ""),
-            ("平均每次成本", "avg_total_cost", ".4f", "USD"),
-            ("總成本", "total_cost_sum", ".4f", "USD"),
-        ]:
+            ("平均每次成本", "avg_total_cost", ".6f", "USD"),
+            ("9 次總成本", "total_cost_sum", ".4f", "USD"),
+        ]
+
+        for metric_name, metric_key, fmt, unit in metrics:
             vals = []
             for ck in combo_keys:
                 s = [r for r in all_results[ck]["results"] if r["success"]]
-                if not s:
+                m = s[WARMUP_RUNS:]  # measured only
+                if not m:
                     vals.append(0)
                     continue
                 if metric_key == "avg_total_time":
-                    vals.append(sum(r["total_seconds"] for r in s) / len(s))
+                    vals.append(sum(r["total_seconds"] for r in m) / len(m))
                 elif metric_key == "avg_rec_time":
-                    vals.append(sum(r["recommendation_seconds"] for r in s) / len(s))
+                    vals.append(sum(r["recommendation_seconds"] for r in m) / len(m))
                 elif metric_key == "avg_prompt":
-                    vals.append(sum(r["prompt_tokens"] for r in s) / len(s))
+                    vals.append(sum(r["prompt_tokens"] for r in m) / len(m))
                 elif metric_key == "avg_completion":
-                    vals.append(sum(r["completion_tokens"] for r in s) / len(s))
+                    vals.append(sum(r["completion_tokens"] for r in m) / len(m))
                 elif metric_key == "avg_total_cost":
-                    vals.append(sum(r["total_cost_usd"] for r in s) / len(s))
+                    vals.append(sum(r["total_cost_usd"] for r in m) / len(m))
                 elif metric_key == "total_cost_sum":
-                    vals.append(sum(r["total_cost_usd"] for r in s))
+                    vals.append(sum(r["total_cost_usd"] for r in m))
 
-            if vals[0] > 0:
-                diff_pct = ((vals[1] - vals[0]) / vals[0]) * 100
-                diff_str = f"{diff_pct:+.1f}%"
-            else:
-                diff_str = "N/A"
-
-            lines.append(
-                f"| {metric_name} | {format(vals[0], fmt)} {unit} | {format(vals[1], fmt)} {unit} | {diff_str} |"
-            )
+            row_cols = [metric_name]
+            for v in vals:
+                row_cols.append(f"{format(v, fmt)} {unit}".strip())
+            lines.append("| " + " | ".join(row_cols) + " |")
 
         lines.append("")
         lines.append("> **備註**：")
-        lines.append("> - 推薦成本僅計算 Step 3 (推薦話術生成) 的 token 費用，Step 2 (RAG 查詢生成) 的成本因 max_tokens=200 而極低（已估算包含）")
+        lines.append(f"> - RAG Query 生成固定使用 `{QUERY_GEN_DEPLOYMENT}`，僅比較推薦話術模型差異")
+        lines.append(f"> - 每組執行 {RUNS_PER_COMBO} 次，排除第 1 次冷啟動後取 {RUNS_PER_COMBO - WARMUP_RUNS} 次平均")
+        lines.append("> - 成本包含推薦話術 token 費用 + RAG 查詢生成估算費用")
         lines.append("> - 總時間包含 MCP 資料擷取（Step 1）、LLM 查詢生成（Step 2）、會員卡 RAG 搜尋、及 LLM 推薦生成（Step 3）")
-        lines.append("> - 網路延遲和 MCP 服務狀態可能影響各次執行的時間差異")
+        lines.append("> - 定價依據 Azure OpenAI Global Standard（USD per 1M tokens）")
 
     return "\n".join(lines)
 
@@ -431,7 +385,8 @@ async def run_benchmark():
 
     # Generate markdown report
     md_content = generate_markdown(all_results, start_time)
-    output_path = Path(__file__).resolve().parent.parent / "doc" / "benchmark-sales-recommendation.md"
+    output_path = Path(__file__).resolve().parent.parent / "doc" / "performance" / "benchmark-sales-recommendation.md"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(md_content, encoding="utf-8")
     print(f"\n{'=' * 70}")
     print(f"  報告已儲存至：{output_path}")
@@ -439,17 +394,7 @@ async def run_benchmark():
 
     # Also save raw JSON data
     json_path = output_path.with_suffix(".json")
-    # Remove full recommendation from JSON to keep file size manageable
-    slim_results = {}
-    for k, v in all_results.items():
-        slim_results[k] = {
-            "combo": v["combo"],
-            "results": [
-                {key: val for key, val in r.items() if key != "recommendation_full"}
-                for r in v["results"]
-            ],
-        }
-    json_path.write_text(json.dumps(slim_results, ensure_ascii=False, indent=2), encoding="utf-8")
+    json_path.write_text(json.dumps(all_results, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"  原始資料：{json_path}")
 
 

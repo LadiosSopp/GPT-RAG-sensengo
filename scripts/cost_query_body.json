@@ -1,0 +1,1 @@
+{"type":"ActualCost","timeframe":"Custom","timePeriod":{"from":"2026-03-17T00:00:00Z","to":"2026-03-24T23:59:59Z"},"dataset":{"granularity":"Daily","aggregation":{"totalCost":{"name":"PreTaxCost","function":"Sum"}},"grouping":[{"type":"Dimension","name":"MeterCategory"},{"type":"Dimension","name":"MeterSubcategory"},{"type":"Dimension","name":"Meter"}]}}

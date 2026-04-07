@@ -764,7 +764,6 @@ Git:       5 repos — 主 repo + 4 subprojects (各自 sensengo remote/branch)
 | 2026-03-18 | Phase 15: GPT-5.4 部署與 AZURE_OPENAI_ENDPOINT 遷移 — eastus → eastus2、前端下拉選單模型同步 |
 | 2026-03-20 | Phase 12: 統一 MCP 資料存取層 — Indexer 重構為全面走 MCP（移除 pyodbc / cosmos 直連）、新增輕量 MCPClient、更新 Mermaid 流程圖 + PNG |
 | 2026-03-17 ~ 20 | Phase 13: 架構 Q&A — Strategy/MCP/工具呼叫機制釐清、三層決策架構（Orchestrator→Strategy→LLM）、Hybrid Strategy 提案、現行 vs 提案 Pipeline 流程圖 |
-| 2026-03-20 | **Phase 17: Demo UI 左右分割佈局** — 會員卡問答面板常駐展開（右側 50%）、推薦話術縮至左側、FAB 隱藏、RWD 768px 堆疊、部署 `orchestrator:48c8bf1` |
 
 ### GPT-4 退役與 GPT-5 全面遷移（2026-03-16 ~ 03-18）
 

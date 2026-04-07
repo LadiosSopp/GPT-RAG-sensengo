@@ -13,6 +13,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi.security import APIKeyHeader
 from fastapi.responses import JSONResponse, Response
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -47,128 +48,94 @@ scheduler = AsyncIOScheduler(timezone=local_tz)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # ALL heavy initialization is deferred to a background task so that
+    # Uvicorn binds port 80 immediately and passes the startup probe.
+    import asyncio
 
-    # scheduler helper
-    def _schedule(env_key: str, func, job_id: str, human_name: str) -> bool:
-        """Schedule a cron job from App Configuration.
+    async def _deferred_init():
+        """Run all initialization and startup jobs in the background."""
+        logging.info("[deferred-init] Starting background initialization...")
 
-        Returns True when the cron environment key is set and the job was added.
-        """
-        cron_expr = app_config_client.get(env_key, default=None, allow_none=True)
-        if cron_expr:
-            try:
-                trigger = CronTrigger.from_crontab(cron_expr, timezone=local_tz)
-                # Do not request an immediate run via next_run_time; we will
-                # optionally run scheduled jobs explicitly and sequentially below.
-                scheduler.add_job(
-                    func,
-                    trigger=trigger,
-                    id=job_id,
-                    replace_existing=True,
-                )
-                logging.info(f"[{human_name}] Scheduled @ {cron_expr}")
-                return True
-            except ValueError:
-                raise RuntimeError(f"Invalid {env_key}: {cron_expr!r}")
-        else:
-            logging.warning(f"[{human_name}] {env_key} not set — skipping job")
-            return False
+        # Authentication and config loading are synchronous / blocking operations.
+        # Run them in a thread so they don't freeze the event loop.
+        def _sync_init():
+            # Compact authentication check
+            env = os.environ
+            has_mi = any(env.get(k) for k in ("IDENTITY_ENDPOINT", "MSI_ENDPOINT", "MSI_SECRET"))
+            has_sp = all(env.get(k) for k in ("AZURE_TENANT_ID", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET"))
+            has_cli = False
+            if not is_azure_environment():
+                try:
+                    has_cli = subprocess.run(["az", "account", "show", "-o", "none"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+                except Exception:
+                    has_cli = False
+            if not (has_sp or has_mi or has_cli):
+                logging.warning("Not authenticated. Exiting...")
+                os._exit(1)
 
-    # Compact authentication check: require MI or SP in Azure; locally accept SP env or `az login`.
-    def _ensure_auth_or_exit() -> None:
-        env = os.environ
-        has_mi = any(env.get(k) for k in ("IDENTITY_ENDPOINT", "MSI_ENDPOINT", "MSI_SECRET"))
-        has_sp = all(env.get(k) for k in ("AZURE_TENANT_ID", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET"))
-        has_cli = False
-        if not is_azure_environment():
-            try:
-                has_cli = subprocess.run(["az", "account", "show", "-o", "none"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
-            except Exception:
-                has_cli = False
-        if not (has_sp or has_mi or has_cli):
-            logging.warning("The service is not authenticated (run 'az login' locally, or configure Managed Identity / Service Principal in Azure). Exiting...")
-            logging.shutdown()
-            os._exit(1)
+            logging.info("[deferred-init] Auth check passed")
 
-    _ensure_auth_or_exit()
-
-    # Reduce Azure SDK noise in local/dev logs
-    def _quiet_azure_sdks():
-        try:
-            # Reduce noisy Azure SDK and HTTP logging. For the http_logging_policy
-            # (which prints request headers/body) set CRITICAL so info/debug are
-            # suppressed. Also disable propagation and attach a NullHandler to
-            # prevent the messages from reaching the root logger.
-            noisy = [
+            # Reduce Azure SDK noise
+            for name in [
                 "azure.core.pipeline.policies.http_logging_policy",
                 "azure.core.pipeline.policies",
-                "azure.identity",
-                "azure",
-                "urllib3",
-            ]
-            for name in noisy:
+                "azure.identity", "azure", "urllib3",
+            ]:
                 lg = logging.getLogger(name)
-                # hide info/debug logs from these loggers
                 lg.setLevel(logging.CRITICAL if name.endswith("http_logging_policy") else logging.WARNING)
                 lg.propagate = False
                 lg.addHandler(logging.NullHandler())
+
+            logging.info("[deferred-init] Loading App Configuration...")
+            cfg = get_config()
+            logging.info("[deferred-init] App Configuration loaded")
+            return cfg
+
+        try:
+            cfg = await asyncio.to_thread(_sync_init)
         except Exception:
-            pass
+            logging.exception("[deferred-init] Failed during sync init")
+            return
 
-    _quiet_azure_sdks()
+        global app_config_client
+        app_config_client = cfg
 
-    # Initialize App Configuration only after passing auth checks
-    global app_config_client
-    app_config_client = get_config()
+        Telemetry.configure_monitoring(app_config_client, APPLICATION_INSIGHTS_CONNECTION_STRING, APP_NAME)
 
-    Telemetry.configure_monitoring(app_config_client, APPLICATION_INSIGHTS_CONNECTION_STRING, APP_NAME)
+        # scheduler helper
+        def _schedule(env_key, func, job_id, human_name):
+            cron_expr = app_config_client.get(env_key, default=None, allow_none=True)
+            if cron_expr:
+                try:
+                    trigger = CronTrigger.from_crontab(cron_expr, timezone=local_tz)
+                    scheduler.add_job(func, trigger=trigger, id=job_id, replace_existing=True)
+                    logging.info(f"[{human_name}] Scheduled @ {cron_expr}")
+                    return True
+                except ValueError:
+                    logging.error(f"Invalid {env_key}: {cron_expr!r}")
+                    return False
+            else:
+                logging.warning(f"[{human_name}] {env_key} not set — skipping job")
+                return False
 
-    # Start the scheduler before scheduling any jobs
-    scheduler.start()
-    logging.info(f"Scheduler timezone: {local_tz}")
+        scheduler.start()
+        logging.info(f"Scheduler timezone: {local_tz}")
 
-    now = datetime.datetime.now(tz=local_tz)
-    s_sharepoint_index = _schedule("CRON_RUN_SHAREPOINT_INDEX", run_sharepoint_index, "sharepoint_index", "sharepoint-indexer")
-    s_sharepoint_purge = _schedule("CRON_RUN_SHAREPOINT_PURGE", run_sharepoint_purge, "sharepoint_purge", "sharepoint-purger")
-    s_images_purge = _schedule("CRON_RUN_IMAGES_PURGE", run_images_purge, "multimodality_images_purge", "multimodality-images-purger")
-    s_blob_index = _schedule("CRON_RUN_BLOB_INDEX", run_blob_index, "blob_index", "blob-storage-indexer")
-    s_blob_purge = _schedule("CRON_RUN_BLOB_PURGE", run_blob_purge, "blob_purge", "blob-storage-indexer-purger")
-    s_nl2sql_index = _schedule("CRON_RUN_NL2SQL_INDEX", run_nl2sql_index, "nl2sql_index", "nl2sql-indexer")
-    s_nl2sql_purge = _schedule("CRON_RUN_NL2SQL_PURGE", run_nl2sql_purge, "nl2sql_purge", "nl2sql-indexer-purger")
-    s_transcript_persona = _schedule("CRON_RUN_TRANSCRIPT_PERSONA", run_transcript_persona, "transcript_persona", "transcript-persona-indexer")
+        s_sharepoint_index = _schedule("CRON_RUN_SHAREPOINT_INDEX", run_sharepoint_index, "sharepoint_index", "sharepoint-indexer")
+        s_sharepoint_purge = _schedule("CRON_RUN_SHAREPOINT_PURGE", run_sharepoint_purge, "sharepoint_purge", "sharepoint-purger")
+        s_images_purge = _schedule("CRON_RUN_IMAGES_PURGE", run_images_purge, "multimodality_images_purge", "multimodality-images-purger")
+        s_blob_index = _schedule("CRON_RUN_BLOB_INDEX", run_blob_index, "blob_index", "blob-storage-indexer")
+        s_blob_purge = _schedule("CRON_RUN_BLOB_PURGE", run_blob_purge, "blob_purge", "blob-storage-indexer-purger")
+        s_nl2sql_index = _schedule("CRON_RUN_NL2SQL_INDEX", run_nl2sql_index, "nl2sql_index", "nl2sql-indexer")
+        s_nl2sql_purge = _schedule("CRON_RUN_NL2SQL_PURGE", run_nl2sql_purge, "nl2sql_purge", "nl2sql-indexer-purger")
+        s_transcript_persona = _schedule("CRON_RUN_TRANSCRIPT_PERSONA", run_transcript_persona, "transcript_persona", "transcript-persona-indexer")
+        s_transcript_insight = _schedule("CRON_RUN_TRANSCRIPT_INSIGHT", run_transcript_insight, "transcript_insight", "transcript-insight-indexer")
 
-    # If a CRON variable was defined for a job, run it once now sequentially to
-    # provide a deterministic startup run without APScheduler race/missed logs.
-    # Only run jobs whose CRON env var existed (the `_schedule` helper returned True).
-    try:
-        if s_blob_index:
-            logging.info("[startup] Running blob-storage-indexer immediately")
-            await run_blob_index()
-        if s_blob_purge:
-            logging.info("[startup] Running blob-purge immediately")
-            await run_blob_purge()        
-        if s_nl2sql_index:
-            logging.info("[startup] Running nl2sql-indexer immediately")
-            await run_nl2sql_index()
-        if s_nl2sql_purge:
-            logging.info("[startup] Running nl2sql-purge immediately")
-            await run_nl2sql_purge()            
-        if s_sharepoint_index:
-            logging.info("[startup] Running sharepoint-indexer immediately")
-            await run_sharepoint_index()
-        if s_sharepoint_purge:
-            logging.info("[startup] Running sharepoint-purger immediately")
-            await run_sharepoint_purge()
-        if s_images_purge:
-            logging.info("[startup] Running multimodality-images-purger immediately")
-            await run_images_purge()
-        if s_transcript_persona:
-            logging.info("[startup] Running transcript-persona-indexer immediately")
-            await run_transcript_persona()
-    except Exception:
-        logging.exception("[startup] Error while running immediate scheduled jobs")
+        logging.info("[deferred-init] Scheduler configured. Skipping immediate startup run (jobs will execute on their cron schedule).")
 
-    yield
+    asyncio.create_task(_deferred_init())
+
+    yield  # Uvicorn starts listening IMMEDIATELY
 
     scheduler.shutdown(wait=False)
 
@@ -185,6 +152,11 @@ app = FastAPI(
     version=APP_VERSION,
     lifespan=lifespan
 )
+
+# Health check endpoint — must respond quickly so startup/readiness probes pass
+@app.get("/healthz")
+async def healthz():
+    return JSONResponse(content={"status": "ok"}, status_code=200)
 
 # -------------------------------
 # Timer job wrappers
@@ -272,6 +244,14 @@ async def run_transcript_persona():
         await TranscriptPersonaIndexer().run()
     except Exception:
         logging.exception("[transcript-persona-indexer] Unexpected error")
+
+async def run_transcript_insight():
+    logging.debug("[transcript-insight-indexer] Starting")
+    try:
+        from jobs.transcript_insight_indexer import TranscriptInsightIndexer
+        await TranscriptInsightIndexer().run()
+    except Exception:
+        logging.exception("[transcript-insight-indexer] Unexpected error")
 
 # -------------------------------
 # HTTP-triggered document-chunking
@@ -427,6 +407,89 @@ async def text_embedding(request: Request):
     logging.info(f'[text_embedding] Finished in {elapsed:.2f} seconds.')
 
     return JSONResponse(content=results)
+
+# -------------------------------
+# Pipeline toggle control
+# -------------------------------
+PIPELINE_GROUPS = {
+    "stt_analysis": {
+        "name": "通話分析 (STT Analysis)",
+        "job_ids": ["transcript_persona", "transcript_insight"],
+    },
+    "data_ingestion": {
+        "name": "資料擷取 (Data Ingestion)",
+        "job_ids": [
+            "blob_index", "blob_purge",
+            "sharepoint_index", "sharepoint_purge",
+            "nl2sql_index", "nl2sql_purge",
+            "multimodality_images_purge",
+        ],
+    },
+}
+
+
+def _validate_pipeline_api_key(x_api_key: str = Depends(APIKeyHeader(name='X-API-KEY'))):
+    """Validate API key for pipeline endpoints.
+    
+    Unlike validate_api_key_header, this gracefully handles the case where
+    app_config_client hasn't been initialized yet (deferred init).
+    """
+    if app_config_client is None:
+        raise HTTPException(status_code=503, detail="Service is still initializing")
+    expected = app_config_client.get('INGESTION_APP_APIKEY', default=None, allow_none=True)
+    if not expected or x_api_key != expected:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+
+@app.get("/api/pipelines", dependencies=[Depends(_validate_pipeline_api_key)])
+async def get_pipelines():
+    """Return status of all pipeline groups and their jobs."""
+    result = {}
+    for group_id, group_info in PIPELINE_GROUPS.items():
+        jobs = []
+        for job_id in group_info["job_ids"]:
+            job = scheduler.get_job(job_id)
+            if job:
+                jobs.append({
+                    "id": job_id,
+                    "paused": job.next_run_time is None,
+                    "next_run": str(job.next_run_time) if job.next_run_time else None,
+                })
+        result[group_id] = {
+            "name": group_info["name"],
+            "jobs": jobs,
+            "paused": all(j["paused"] for j in jobs) if jobs else True,
+        }
+    return JSONResponse(content=result)
+
+
+@app.post("/api/pipelines/{group_id}/toggle", dependencies=[Depends(_validate_pipeline_api_key)])
+async def toggle_pipeline(group_id: str):
+    """Toggle a pipeline group on/off (pause/resume all jobs in the group)."""
+    if group_id not in PIPELINE_GROUPS:
+        raise HTTPException(status_code=404, detail=f"Unknown pipeline group: {group_id}")
+
+    group = PIPELINE_GROUPS[group_id]
+    # Determine current state: paused when every scheduled job is paused
+    all_paused = True
+    for job_id in group["job_ids"]:
+        job = scheduler.get_job(job_id)
+        if job and job.next_run_time is not None:
+            all_paused = False
+            break
+
+    action = "resume" if all_paused else "pause"
+    for job_id in group["job_ids"]:
+        job = scheduler.get_job(job_id)
+        if job:
+            if action == "pause":
+                scheduler.pause_job(job_id)
+            else:
+                scheduler.resume_job(job_id)
+
+    logging.info(f"[pipeline-toggle] {group_id} ({group['name']}): {action}d")
+    return JSONResponse(content={"group_id": group_id, "action": action, "paused": action == "pause"})
+
 
 HTTPXClientInstrumentor().instrument()
 FastAPIInstrumentor.instrument_app(app)

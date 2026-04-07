@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline 管理面板</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#1a1a2e;min-height:100vh}
+.header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:24px 32px;display:flex;align-items:center;gap:16px}
+.header h1{font-size:1.4rem;font-weight:600}
+.header a{color:rgba(255,255,255,.8);text-decoration:none;font-size:.9rem}
+.header a:hover{color:#fff}
+.container{max-width:720px;margin:32px auto;padding:0 16px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);padding:24px;margin-bottom:20px;transition:box-shadow .2s}
+.card:hover{box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.card-title{font-size:1.1rem;font-weight:600}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:600;text-transform:uppercase}
+.badge.active{background:#d4edda;color:#155724}
+.badge.paused{background:#fff3cd;color:#856404}
+.badge.offline{background:#f8d7da;color:#721c24}
+/* Toggle switch */
+.switch{position:relative;width:52px;height:28px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:28px;transition:.3s}
+.slider::before{content:"";position:absolute;height:22px;width:22px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+input:checked+.slider{background:#667eea}
+input:checked+.slider::before{transform:translateX(24px)}
+input:disabled+.slider{opacity:.5;cursor:not-allowed}
+.jobs-list{margin-top:12px;border-top:1px solid #eee;padding-top:12px}
+.job-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:.85rem;color:#555}
+.job-row .job-name{font-family:'Courier New',monospace;font-weight:500}
+.job-row .job-next{color:#888;font-size:.8rem}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.status-dot.active{background:#28a745}
+.status-dot.paused{background:#ffc107}
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;color:#fff;font-size:.9rem;opacity:0;transition:opacity .3s;pointer-events:none;z-index:1000}
+.toast.show{opacity:1}
+.toast.success{background:#28a745}
+.toast.error{background:#dc3545}
+.loading{text-align:center;padding:40px;color:#888}
+.spinner{width:32px;height:32px;border:3px solid #eee;border-top-color:#667eea;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-box{background:#fff5f5;border:1px solid #fed7d7;border-radius:8px;padding:16px;color:#c53030;text-align:center}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>⚙️ Pipeline 管理面板</h1>
+  <a href="/">← 返回聊天</a>
+</div>
+<div class="container" id="app">
+  <div class="loading"><div class="spinner"></div>載入中...</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const API_BASE = '/api/admin/pipelines';
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+async function fetchPipelines() {
+  try {
+    const res = await fetch(API_BASE);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+async function togglePipeline(groupId) {
+  const sw = document.getElementById('sw-' + groupId);
+  if (sw) sw.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/${groupId}/toggle`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    showToast(
+      data.paused ? `已暫停: ${data.group_id}` : `已啟用: ${data.group_id}`,
+      'success'
+    );
+    await renderAll();
+  } catch (e) {
+    showToast('操作失敗: ' + e.message, 'error');
+    await renderAll();
+  }
+}
+
+function renderCard(groupId, group) {
+  const isPaused = group.paused;
+  const hasJobs = group.jobs && group.jobs.length > 0;
+  const badgeClass = !hasJobs ? 'offline' : isPaused ? 'paused' : 'active';
+  const badgeText = !hasJobs ? '未排程' : isPaused ? '已暫停' : '運行中';
+
+  let jobsHtml = '';
+  if (hasJobs) {
+    jobsHtml = '<div class="jobs-list">' + group.jobs.map(j => {
+      const dotClass = j.paused ? 'paused' : 'active';
+      const nextRun = j.next_run ? new Date(j.next_run).toLocaleString('zh-TW') : '—';
+      return `<div class="job-row">
+        <span><span class="status-dot ${dotClass}"></span><span class="job-name">${j.id}</span></span>
+        <span class="job-next">下次: ${nextRun}</span>
+      </div>`;
+    }).join('') + '</div>';
+  }
+
+  return `<div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">${group.name}</div>
+        <span class="badge ${badgeClass}">${badgeText}</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="sw-${groupId}" ${!isPaused ? 'checked' : ''} ${!hasJobs ? 'disabled' : ''}
+          onchange="togglePipeline('${groupId}')">
+        <span class="slider"></span>
+      </label>
+    </div>
+    ${jobsHtml}
+  </div>`;
+}
+
+async function renderAll() {
+  const container = document.getElementById('app');
+  const data = await fetchPipelines();
+  if (!data) {
+    container.innerHTML = '<div class="error-box">無法連線到 Ingestion 服務。<br>請確認 <code>INGESTION_BASE_URL</code> 與 <code>INGESTION_APP_APIKEY</code> 已設定。</div>';
+    return;
+  }
+  let html = '';
+  for (const [gid, group] of Object.entries(data)) {
+    html += renderCard(gid, group);
+  }
+  container.innerHTML = html;
+}
+
+renderAll();
+setInterval(renderAll, 30000);
+</script>
+</body>
+</html>

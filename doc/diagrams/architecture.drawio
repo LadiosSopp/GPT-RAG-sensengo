@@ -1,0 +1,131 @@
+<mxfile host="app.diagrams.net" agent="Copilot" version="26.0.0">
+<diagram id="arch" name="System Architecture">
+<mxGraphModel dx="0" dy="0" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="1">
+<root>
+<mxCell id="0"/>
+<mxCell id="1" parent="0"/>
+
+<mxCell id="2" value="Sensengo — AI Sales Recommendation System Architecture" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1;fontFamily=Segoe UI;fontColor=#323130;" vertex="1" parent="1">
+<mxGeometry x="460" y="8" width="1000" height="45" as="geometry"/>
+</mxCell>
+
+<mxCell id="3" value="&lt;b style=&quot;font-size:17px&quot;&gt;Frontend&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:12px;opacity:0.85&quot;&gt;gpt-rag-ui&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px;opacity:0.7&quot;&gt;Chainlit Web UI + FastAPI | Azure Container Apps&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0078D4;fontColor=#FFFFFF;strokeColor=#005A9E;strokeWidth=2;fontSize=14;fontFamily=Segoe UI;arcSize=12;shadow=1;" vertex="1" parent="1">
+<mxGeometry x="610" y="70" width="700" height="90" as="geometry"/>
+</mxCell>
+
+<mxCell id="4" value="&lt;b style=&quot;font-size:17px&quot;&gt;Orchestrator&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:12px;opacity:0.85&quot;&gt;gpt-rag-orchestrator&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px;opacity:0.7&quot;&gt;FastAPI + Azure AI Foundry Agent + Semantic Kernel + Sales Recommendation Engine&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5C2D91;fontColor=#FFFFFF;strokeColor=#4B2578;strokeWidth=2;fontSize=14;fontFamily=Segoe UI;arcSize=8;shadow=1;" vertex="1" parent="1">
+<mxGeometry x="260" y="235" width="1400" height="100" as="geometry"/>
+</mxCell>
+
+<mxCell id="5" value="&lt;b style=&quot;font-size:17px&quot;&gt;Ingestion Pipeline&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:12px;opacity:0.85&quot;&gt;gpt-rag-ingestion&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px;opacity:0.7&quot;&gt;APScheduler → Document Chunking → Vector Embedding&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#107C10;fontColor=#FFFFFF;strokeColor=#0B5A0B;strokeWidth=2;fontSize=14;fontFamily=Segoe UI;arcSize=10;shadow=1;" vertex="1" parent="1">
+<mxGeometry x="60" y="430" width="500" height="90" as="geometry"/>
+</mxCell>
+
+<mxCell id="6" value="&lt;b style=&quot;font-size:17px&quot;&gt;MCP Server&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:12px;opacity:0.85&quot;&gt;gpt-rag-mcp&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px;opacity:0.7&quot;&gt;query_customer_persona | query_call_summary | search_membership_card&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF8C00;fontColor=#FFFFFF;strokeColor=#CC7000;strokeWidth=2;fontSize=14;fontFamily=Segoe UI;arcSize=10;shadow=1;" vertex="1" parent="1">
+<mxGeometry x="780" y="430" width="750" height="90" as="geometry"/>
+</mxCell>
+
+<mxCell id="7" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0F6FF;strokeColor=#0078D4;strokeWidth=2;dashed=1;dashPattern=8 4;arcSize=5;" vertex="1" parent="1">
+<mxGeometry x="40" y="595" width="1840" height="250" as="geometry"/>
+</mxCell>
+<mxCell id="8" value="&lt;b&gt;Azure Cloud Services&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontFamily=Segoe UI;fontColor=#0078D4;fontStyle=0;" vertex="1" parent="1">
+<mxGeometry x="60" y="600" width="300" height="30" as="geometry"/>
+</mxCell>
+
+<mxCell id="10" value="&lt;b&gt;Azure OpenAI&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;GPT-5.2 / GPT-5-mini&lt;/span&gt;" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/ai_machine_learning/Azure_OpenAI.svg;fontFamily=Segoe UI;fontSize=11;fontColor=#323130;html=1;" vertex="1" parent="1">
+<mxGeometry x="100" y="660" width="50" height="50" as="geometry"/>
+</mxCell>
+
+<mxCell id="11" value="&lt;b&gt;AI Search&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;Hybrid RAG Index&lt;/span&gt;" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/analytics/Search_Services.svg;fontFamily=Segoe UI;fontSize=11;fontColor=#323130;html=1;" vertex="1" parent="1">
+<mxGeometry x="350" y="660" width="50" height="50" as="geometry"/>
+</mxCell>
+
+<mxCell id="12" value="&lt;b&gt;Cosmos DB&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;Conversations / Transcripts&lt;/span&gt;" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/databases/Azure_Cosmos_DB.svg;fontFamily=Segoe UI;fontSize=11;fontColor=#323130;html=1;" vertex="1" parent="1">
+<mxGeometry x="600" y="660" width="50" height="50" as="geometry"/>
+</mxCell>
+
+<mxCell id="13" value="&lt;b&gt;SQL Database&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;Customer Persona (53 fields)&lt;/span&gt;" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/databases/SQL_Database.svg;fontFamily=Segoe UI;fontSize=11;fontColor=#323130;html=1;" vertex="1" parent="1">
+<mxGeometry x="850" y="660" width="50" height="50" as="geometry"/>
+</mxCell>
+
+<mxCell id="14" value="&lt;b&gt;Blob Storage&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;Documents&lt;/span&gt;" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/storage/Storage_Accounts.svg;fontFamily=Segoe UI;fontSize=11;fontColor=#323130;html=1;" vertex="1" parent="1">
+<mxGeometry x="1100" y="660" width="50" height="50" as="geometry"/>
+</mxCell>
+
+<mxCell id="15" value="&lt;b&gt;App Configuration&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;Centralized Config&lt;/span&gt;" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/management_governance/App_Configuration.svg;fontFamily=Segoe UI;fontSize=11;fontColor=#323130;html=1;" vertex="1" parent="1">
+<mxGeometry x="1350" y="660" width="50" height="50" as="geometry"/>
+</mxCell>
+
+<mxCell id="16" value="&lt;b&gt;Speech-to-Text&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:9px&quot;&gt;Audio Transcription&lt;/span&gt;" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/ai_machine_learning/Speech_Services.svg;fontFamily=Segoe UI;fontSize=11;fontColor=#323130;html=1;" vertex="1" parent="1">
+<mxGeometry x="1600" y="660" width="50" height="50" as="geometry"/>
+</mxCell>
+
+<mxCell id="20" value="HTTP / SSE" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#5C2D91;fontFamily=Segoe UI;fontSize=11;fontColor=#5C2D91;fontStyle=1;" edge="1" source="3" target="4" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="21" value="MCP Protocol" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#FF8C00;fontFamily=Segoe UI;fontSize=11;fontColor=#FF8C00;fontStyle=1;exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="4" target="6" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="22" value="Semantic Kernel / LLM" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#0078D4;fontFamily=Segoe UI;fontSize=11;fontColor=#0078D4;exitX=0.1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="4" target="10" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#FF8C00;exitX=0.7;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="6" target="13" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="24" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#FF8C00;exitX=0.35;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="6" target="12" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="25" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#FF8C00;exitX=0.1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="6" target="11" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="26" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#107C10;exitX=0.85;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="5" target="14" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="27" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#107C10;exitX=0.55;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="5" target="11" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="28" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#107C10;exitX=0.2;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="5" target="10" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="29" value="Save Chat" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#8A8886;dashed=1;dashPattern=8 4;fontFamily=Segoe UI;fontSize=10;fontColor=#8A8886;exitX=0.35;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="4" target="12" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="30" value="Config" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#8A8886;dashed=1;dashPattern=8 4;fontFamily=Segoe UI;fontSize=10;fontColor=#8A8886;exitX=0.93;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="4" target="15" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="40" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/containers/Container_App.svg;fontFamily=Segoe UI;fontSize=9;fontColor=#666;" vertex="1" parent="1">
+<mxGeometry x="1280" y="72" width="24" height="24" as="geometry"/>
+</mxCell>
+<mxCell id="41" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/containers/Container_App.svg;fontFamily=Segoe UI;fontSize=9;fontColor=#666;" vertex="1" parent="1">
+<mxGeometry x="1626" y="238" width="24" height="24" as="geometry"/>
+</mxCell>
+<mxCell id="42" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/containers/Container_App.svg;fontFamily=Segoe UI;fontSize=9;fontColor=#666;" vertex="1" parent="1">
+<mxGeometry x="528" y="432" width="24" height="24" as="geometry"/>
+</mxCell>
+<mxCell id="43" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/containers/Container_App.svg;fontFamily=Segoe UI;fontSize=9;fontColor=#666;" vertex="1" parent="1">
+<mxGeometry x="1498" y="432" width="24" height="24" as="geometry"/>
+</mxCell>
+
+<mxCell id="50" value="All four components deployed on Azure Container Apps" style="text;html=1;align=right;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=2;fontFamily=Segoe UI;fontColor=#8A8886;" vertex="1" parent="1">
+<mxGeometry x="1350" y="555" width="510" height="30" as="geometry"/>
+</mxCell>
+
+<mxCell id="51" value="Solid line = primary data flow  |  Dashed line = supporting connection" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=2;fontFamily=Segoe UI;fontColor=#8A8886;" vertex="1" parent="1">
+<mxGeometry x="60" y="555" width="500" height="30" as="geometry"/>
+</mxCell>
+
+</root>
+</mxGraphModel>
+</diagram>
+</mxfile>

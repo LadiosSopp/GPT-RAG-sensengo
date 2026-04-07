@@ -36,6 +36,7 @@ Write-Host ""  # blank line
 #region Early Docker validation
 $pausedPattern   = 'Docker Desktop is manually paused'
 $daemonDownRegex = '((?i)error during connect|Cannot connect to the Docker daemon|Is the docker daemon running|The Docker daemon is not running|dockerDesktopLinuxEngine|dockerDesktopWindowsEngine|The system cannot find the file specified|open \\./pipe/|context deadline exceeded)'
+$script:useLocalDocker = $false
 
 # Optional: try service check, but do NOT fail based on it
 try {
@@ -53,19 +54,18 @@ if (Get-Command docker -ErrorAction SilentlyContinue) {
 
     if ($probeText -match $pausedPattern -or $probeText -match $daemonDownRegex -or $probeExit -ne 0) {
         if ($probeText -match $pausedPattern) {
-            Write-ErrorColored '❌ Docker Desktop is manually paused. Unpause it via the Whale menu or Dashboard.'
+            Write-Yellow '⚠️  Docker Desktop is manually paused.'
         } else {
-            Write-ErrorColored '❌ Docker Desktop is not running.'
+            Write-Yellow '⚠️  Docker Desktop is not running.'
         }
-        Write-Yellow '⚠️  Please start/unpause Docker Desktop and re-run this script.'
-        exit 1
+        Write-Yellow '⚠️  Will use az acr build (cloud build) instead.'
+    } else {
+        $script:useLocalDocker = $true
+        Write-Green "✅ Docker is available."
     }
 } else {
-    Write-ErrorColored '❌ Docker CLI not found on this system.'
-    Write-Yellow '⚠️  Please install Docker Desktop and re-run this script.'
-    exit 1
+    Write-Yellow '⚠️  Docker CLI not found. Will use az acr build (cloud build) instead.'
 }
-Write-Green "✅ Docker is available."
 Write-Host ""
 #endregion
 
@@ -124,10 +124,35 @@ Write-Host ""
 Write-Blue "🔐 Checking Azure CLI login and subscription…"
 try {
     az account show > $null 2>&1
-    az account set -s $env:AZURE_SUBSCRIPTION_ID 2>$null
 } catch {
     Write-Yellow "⚠️  Not logged in. Please run 'az login'."
     exit 1
+}
+
+# Resolve subscription: env var > azd .env > current default
+$subscriptionId = $null
+if ($env:AZURE_SUBSCRIPTION_ID) {
+    $subscriptionId = $env:AZURE_SUBSCRIPTION_ID.Trim()
+    Write-Green ("✅ Using AZURE_SUBSCRIPTION_ID from env: {0}" -f $subscriptionId)
+} else {
+    # Try to load from .azure/sensengo-prod/.env
+    $azdEnvFile = Join-Path $PSScriptRoot '..' '.azure' 'sensengo-prod' '.env'
+    if (Test-Path $azdEnvFile) {
+        foreach ($line in Get-Content $azdEnvFile) {
+            if ($line -match '^\s*AZURE_SUBSCRIPTION_ID\s*=\s*"?([^"]+)"?\s*$') {
+                $subscriptionId = $Matches[1].Trim()
+                Write-Green ("✅ Using AZURE_SUBSCRIPTION_ID from .azure env: {0}" -f $subscriptionId)
+                break
+            }
+        }
+    }
+}
+if ($subscriptionId) {
+    $script:subArgs = @('--subscription', $subscriptionId)
+    Write-Blue ("🔒 All az commands will use --subscription {0}" -f $subscriptionId)
+} else {
+    $script:subArgs = @()
+    Write-Yellow "⚠️  No AZURE_SUBSCRIPTION_ID set — using current default subscription."
 }
 Write-Green "✅ Azure CLI is logged in."
 Write-Host ""
@@ -150,6 +175,7 @@ function Get-ConfigValue {
             --label $label `
             --auth-mode login `
             --endpoint "https://appcs-$($env:RESOURCE_TOKEN).azconfig.io" `
+            @script:subArgs `
             --query value -o tsv 2>&1
         $exitCode = $LASTEXITCODE
     } catch {
@@ -201,7 +227,7 @@ Write-Host ""
 
 Write-Green ("🔐 Logging into ACR ({0} in {1})…" -f $values.CONTAINER_REGISTRY_NAME, $values.AZURE_RESOURCE_GROUP)
 try {
-    az acr login --name $values.CONTAINER_REGISTRY_NAME --resource-group $values.AZURE_RESOURCE_GROUP
+    az acr login --name $values.CONTAINER_REGISTRY_NAME --resource-group $values.AZURE_RESOURCE_GROUP @script:subArgs
     Write-Green "✅ Logged into ACR."
 } catch {
     $errMsg = $_.Exception.Message
@@ -241,7 +267,7 @@ if ($env:tag) {
 #region Build or ACR build image
 $fullImageName = "$($values.CONTAINER_REGISTRY_LOGIN_SERVER)/azure-gpt-rag/data-ingestion:$tag"
 Write-Green "🛠️  Building Docker image…"
-if (Get-Command docker -ErrorAction SilentlyContinue) {
+if ($script:useLocalDocker) {
     try {
         docker build -t $fullImageName .
         Write-Green "✅ Docker build succeeded."
@@ -251,12 +277,13 @@ if (Get-Command docker -ErrorAction SilentlyContinue) {
         exit 1
     }
 } else {
-    Write-Blue "⚠️  Docker CLI not found locally. Falling back to 'az acr build'."
+    Write-Blue "☁️  Using az acr build (cloud build)…"
     try {
         az acr build `
             --registry $values.CONTAINER_REGISTRY_NAME `
             --image "azure-gpt-rag/data-ingestion:$tag" `
             --file Dockerfile `
+            @script:subArgs `
             .
         Write-Green "✅ ACR cloud build succeeded."
     } catch {
@@ -269,7 +296,7 @@ Write-Host ""
 #endregion
 
 #region Push Docker image (if local build used)
-if (Get-Command docker -ErrorAction SilentlyContinue) {
+if ($script:useLocalDocker) {
     Write-Green "📤 Pushing image…"
     try {
         docker push $fullImageName
@@ -294,6 +321,7 @@ try {
     $ids = $(az containerapp identity show `
         --name $values.DATA_INGEST_APP_NAME `
         --resource-group $values.AZURE_RESOURCE_GROUP `
+        @script:subArgs `
         --output json) | ConvertFrom-Json
 
     if ($ids.type.tostring().contains("UserAssigned"))
@@ -303,13 +331,15 @@ try {
             --resource-group $values.AZURE_RESOURCE_GROUP `
             --server "$($values.CONTAINER_REGISTRY_NAME).azurecr.io" `
             --identity "/subscriptions/$($values.SUBSCRIPTION_ID)/resourceGroups/$($values.AZURE_RESOURCE_GROUP)/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-ca-$($values.RESOURCE_TOKEN)-dataingest" `
+            @script:subArgs
     }
     else {
         az containerapp registry set `
         --name $values.DATA_INGEST_APP_NAME `
         --resource-group $values.AZURE_RESOURCE_GROUP `
         --server "$($values.CONTAINER_REGISTRY_NAME).azurecr.io" `
-        --identity "system"
+        --identity "system" `
+        @script:subArgs
     }
     
 
@@ -326,7 +356,8 @@ try {
     az containerapp update `
         --name $values.DATA_INGEST_APP_NAME `
         --resource-group $values.AZURE_RESOURCE_GROUP `
-        --image $fullImageName
+        --image $fullImageName `
+        @script:subArgs
     Write-Green "✅ Container app updated."
 } catch {
     $errMsg = $_.Exception.Message
@@ -339,6 +370,7 @@ Write-Blue "🔍 Fetching current revision…"
 $currentRevision = az containerapp revision list `
     --name $values.DATA_INGEST_APP_NAME `
     --resource-group $values.AZURE_RESOURCE_GROUP `
+    @script:subArgs `
     --query "[0].name" -o tsv
 
 #region Restart Container App
@@ -347,7 +379,8 @@ try {
     az containerapp revision restart `
         --name $values.DATA_INGEST_APP_NAME `
         --resource-group $values.AZURE_RESOURCE_GROUP `
-        --revision $currentRevision
+        --revision $currentRevision `
+        @script:subArgs
 
     Write-Green "✅ Container app revision restarted."
 } catch {

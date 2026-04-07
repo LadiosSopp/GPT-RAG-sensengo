@@ -1,0 +1,83 @@
+graph TB
+    %% ============================================================
+    %% 通話逐字稿分析 Pipeline — 系統架構圖（含 STT 全流程）
+    %% ============================================================
+
+    subgraph AudioSource["📞 通話錄音來源"]
+        direction LR
+        WAV_AGENT["🎧 客服錄音<br/>{call_id}.agent.wav"]
+        WAV_CUSTOMER["🎧 客戶錄音<br/>{call_id}.customer.wav"]
+    end
+
+    subgraph AzureSpeech["🎙️ Azure AI Speech — aif-2v3lfktkn4xam-gprag"]
+        direction TB
+        STT_API["Fast Transcription API<br/>speechtotext/transcriptions:transcribe<br/>API 2024-11-15 · locale: zh-TW"]
+        STT_OUT["📄 STT 輸出<br/>transcripts/<br/>{call_id}.agent.json<br/>{call_id}.customer.json<br/>{call_id}.agent.txt<br/>{call_id}.customer.txt"]
+    end
+
+    subgraph MergeStep["🔀 合併處理"]
+        MERGE["merge_transcripts.py<br/>按時間戳排序合併<br/>客服 + 客戶逐字稿"]
+    end
+
+    subgraph BlobStorage["☁️ Azure Blob Storage — st2v3lfktkn4xam / documents"]
+        direction TB
+        BLOB_SRC[("📂 transcripts_merged/<br/>{call_id}.txt + .json<br/>待處理通話紀錄")]
+        BLOB_DST[("📦 transcripts_processed/<br/>{call_id}.txt + .json<br/>已處理歸檔")]
+        subgraph Insights["📊 sales_insights/"]
+            direction LR
+            JSON_S["✅ 成功話術分析.json"]
+            JSON_F["❌ 失敗話術分析.json"]
+            MD_S["📄 成功話術分析.md"]
+            MD_F["📄 失敗話術分析.md"]
+        end
+        JOBS_LOG[("📋 jobs/<br/>transcript-insight-indexer/<br/>{runId}/summary.json")]
+    end
+
+    subgraph Ingestion["🐳 Azure Container App — Ingestion<br/>ca-2v3lfktkn4xam-ingestion-gprag"]
+        direction TB
+        SCHEDULER{{"⏰ APScheduler<br/>CRON_RUN_TRANSCRIPT_INSIGHT<br/>(每日 0 2 * * *)"}}
+        INDEXER["📊 TranscriptInsightIndexer<br/>(jobs/transcript_insight_indexer.py)"]
+        AOAI_CLIENT["🛠️ AzureOpenAIClient<br/>(tools/aoai.py)<br/>AAD Token Auth"]
+    end
+
+    subgraph AzureOpenAI["🧠 Azure OpenAI — aif-2v3lfktkn4xam-gprag"]
+        direction LR
+        GPT54["GPT-5.4<br/>(gpt-5.4 deployment)<br/>通話分析 & 話術擷取"]
+    end
+
+    subgraph AppConfig["⚙️ Azure App Configuration"]
+        CONFIG["appcs-2v3lfktkn4xam-gprag<br/>CRON / Deployment / Storage 設定"]
+    end
+
+    %% ── 資料流：STT 階段 ─────────────────────────────
+    WAV_AGENT -->|"WAV 音檔上傳<br/>multipart/form-data"| STT_API
+    WAV_CUSTOMER -->|"WAV 音檔上傳<br/>multipart/form-data"| STT_API
+    STT_API -->|"轉錄結果<br/>(phrases + timestamps)"| STT_OUT
+
+    %% ── 資料流：合併階段 ─────────────────────────────
+    STT_OUT -->|"agent.json + customer.json"| MERGE
+    MERGE -->|"上傳合併後<br/>.txt + .json"| BLOB_SRC
+
+    %% ── 資料流：分析階段 ─────────────────────────────
+    SCHEDULER -->|"定時觸發"| INDEXER
+    INDEXER -->|"讀取 .txt 逐字稿"| BLOB_SRC
+    INDEXER -->|"呼叫 GPT-5.4 分析"| AOAI_CLIENT
+    AOAI_CLIENT -->|"AAD Auth<br/>chat.completions"| GPT54
+    GPT54 -->|"JSON 分析結果"| INDEXER
+
+    INDEXER -->|"更新彙整報告<br/>(成功/失敗分區)"| Insights
+    INDEXER -->|"搬移已處理檔案"| BLOB_DST
+    INDEXER -->|"寫入執行摘要"| JOBS_LOG
+
+    CONFIG -.->|"載入設定"| SCHEDULER
+    CONFIG -.->|"CHAT_DEPLOYMENT_NAME<br/>STORAGE_ACCOUNT_NAME"| INDEXER
+
+    %% ── 樣式 ─────────────────────────────────────────
+    style AudioSource fill:#ede7f6,stroke:#4527a0,color:#311b92
+    style AzureSpeech fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
+    style MergeStep fill:#e0f2f1,stroke:#00695c,color:#004d40
+    style BlobStorage fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+    style Insights fill:#c8e6c9,stroke:#388e3c
+    style Ingestion fill:#fff3e0,stroke:#e65100,color:#bf360c
+    style AzureOpenAI fill:#fce4ec,stroke:#c62828,color:#b71c1c
+    style AppConfig fill:#efebe9,stroke:#4e342e,color:#3e2723

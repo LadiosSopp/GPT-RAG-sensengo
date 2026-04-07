@@ -1,0 +1,31 @@
+properties:
+  template:
+    containers:
+      - name: ca-ingest-gprag
+        image: cr2v3lfktkn4xamgprag.azurecr.io/dataingest:pipeline-20260325005612
+        resources:
+          cpu: 1.0
+          memory: 2Gi
+        probes:
+          - type: Startup
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 60
+            timeoutSeconds: 3
+          - type: Readiness
+            httpGet:
+              path: /healthz
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 5
+          - type: Liveness
+            httpGet:
+              path: /healthz
+              port: 80
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 5

@@ -1,0 +1,161 @@
+flowchart TD
+    %% ============================================================
+    %% 通話逐字稿分析 Pipeline — 完整處理流程圖（含 STT）
+    %% ============================================================
+
+    %% ══════════════════════════════════════════════════
+    %% Phase 1: 語音轉文字 (STT)
+    %% ══════════════════════════════════════════════════
+    WAV_IN(["📞 取得通話 WAV 錄音<br/>客服端 + 客戶端分軌錄音"])
+
+    SCAN_WAV["📂 掃描 audio.sanitized/<br/>列舉所有 .wav 檔案"]
+    SKIP_DONE{"🔍 已轉錄？<br/>(transcripts/ 中<br/>已有對應 .json)"}
+    GET_TOKEN["🔑 取得 AAD Token<br/>AzureCliCredential<br/>tenant: 45f5172d..."]
+    CALL_STT["🎙️ 呼叫 Azure AI Speech<br/>Fast Transcription API<br/>POST /speechtotext/transcriptions:transcribe<br/>locale=zh-TW · multipart/form-data"]
+    STT_RESULT{"✅ HTTP 200？"}
+    STT_SAVE["💾 儲存轉錄結果<br/>{call_id}.agent.json / .txt<br/>{call_id}.customer.json / .txt"]
+    STT_FAIL["⚠️ 記錄 STT 錯誤<br/>跳過此檔案"]
+    STT_REFRESH{"🔄 每 50 檔<br/>刷新 Token？"}
+
+    WAV_IN --> SCAN_WAV
+    SCAN_WAV --> SKIP_DONE
+    SKIP_DONE -->|"是 — 已轉錄"| STT_REFRESH
+    SKIP_DONE -->|"否 — 需轉錄"| GET_TOKEN
+    GET_TOKEN --> CALL_STT
+    CALL_STT --> STT_RESULT
+    STT_RESULT -->|"是"| STT_SAVE
+    STT_RESULT -->|"否"| STT_FAIL
+    STT_SAVE --> STT_REFRESH
+    STT_FAIL --> STT_REFRESH
+    STT_REFRESH -->|"是"| GET_TOKEN
+    STT_REFRESH -->|"否 / 下一檔"| SKIP_DONE
+
+    %% ══════════════════════════════════════════════════
+    %% Phase 2: 合併逐字稿
+    %% ══════════════════════════════════════════════════
+    MERGE_START(["🔀 合併逐字稿<br/>merge_transcripts.py"])
+    FIND_PAIRS["📂 掃描 transcripts/<br/>找出所有 {call_id}.agent.json"]
+    LOAD_BOTH["⬇️ 載入 agent + customer 逐字稿<br/>標記 speaker 角色"]
+    SORT_TIME["⏱️ 按 offsetMilliseconds 排序<br/>合併為單一對話"]
+    SAVE_MERGED["💾 儲存至 transcripts_merged/<br/>{call_id}.json (結構化)<br/>{call_id}.txt (可讀格式:<br/>客服：... / 客戶：...)"]
+    UPLOAD_BLOB["☁️ 上傳至 Blob Storage<br/>documents/transcripts_merged/"]
+
+    STT_SAVE -.->|"所有 WAV 處理完成"| MERGE_START
+    MERGE_START --> FIND_PAIRS
+    FIND_PAIRS -->|"每個 call_id"| LOAD_BOTH
+    LOAD_BOTH --> SORT_TIME
+    SORT_TIME --> SAVE_MERGED
+    SAVE_MERGED --> UPLOAD_BLOB
+
+    %% ══════════════════════════════════════════════════
+    %% Phase 3: 通話分析 Pipeline
+    %% ══════════════════════════════════════════════════
+    START(["🚀 分析 Pipeline 啟動<br/>(CRON 每日觸發 或 容器啟動)"])
+
+    UPLOAD_BLOB -.->|"新資料就緒"| START
+
+    %% ── Step 1: 掃描 ────────────────────────────────
+    SCAN["📂 掃描 transcripts_merged/<br/>列舉所有 .txt 檔案"]
+    SCAN_PROCESSED["📦 掃描 transcripts_processed/<br/>取得已處理 call_id 集合"]
+    FILTER["🔍 篩選待處理<br/>pending = source - processed"]
+    CHECK_EMPTY{"📋 有待處理的<br/>通話紀錄？"}
+
+    %% ── Step 2: 逐筆處理 ────────────────────────────
+    LOOP_START["🔄 並行處理每通電話<br/>(Semaphore max_concurrency=4)"]
+    READ_TXT["⬇️ 下載 .txt 逐字稿<br/>從 Blob Storage"]
+
+    %% ── Step 3: 內容驗證 ─────────────────────────────
+    VALIDATE{"📝 有效對話行數<br/>≥ 3 行？"}
+    SKIP["⏭️ 跳過 (too_short)<br/>直接移至 processed"]
+
+    %% ── Step 4: GPT-5.4 分析 ─────────────────────────
+    GPT_CALL["🤖 呼叫 GPT-5.4<br/>System: 電話行銷分析專家<br/>response_format: json_object<br/>temperature: 0.3"]
+    
+    subgraph GPT_Analysis["GPT-5.4 擷取內容"]
+        direction LR
+        A1["📊 推銷結果<br/>(成功/失敗 + 信心分數)"]
+        A2["👤 客戶態度分析<br/>(態度/顧慮/興趣)"]
+        A3["🔑 關鍵因素<br/>(正面/負面)"]
+        A4["💬 有效話術策略<br/>(策略+引用+分析)"]
+        A5["📋 推薦話術<br/>(場景+話術+原因)"]
+        A6["⚠️ 改善建議<br/>(失敗案例)"]
+    end
+
+    GPT_RESULT["📥 收到 JSON 分析結果"]
+
+    %% ── Step 5: 搬移檔案 ─────────────────────────────
+    MOVE["📁 搬移至 processed/<br/>.txt + .json → transcripts_processed/"]
+
+    %% ── Step 6: 彙整更新 ─────────────────────────────
+    COLLECT["📊 收集所有新分析結果"]
+    CLASSIFY{"🏷️ 依推銷結果分類"}
+    
+    SUCCESS_BUCKET["✅ 成功話術分析<br/>載入現有 → 合併新分析<br/>去重複 (by call_id)"]
+    FAILURE_BUCKET["❌ 失敗話術分析<br/>載入現有 → 合併新分析<br/>去重複 (by call_id)"]
+
+    SAVE_JSON["💾 上傳更新後的 JSON<br/>成功話術分析.json<br/>失敗話術分析.json"]
+    GEN_MD["📝 產生 Markdown 報告<br/>彙整推薦話術 + 改善建議"]
+    SAVE_MD["💾 上傳 Markdown 報告<br/>成功話術分析.md<br/>失敗話術分析.md"]
+
+    %% ── Step 7: Run Summary ──────────────────────────
+    SUMMARY["📋 寫入 Run Summary<br/>jobs/transcript-insight-indexer/<br/>{runId}/summary.json"]
+    
+    DONE(["✅ Pipeline 完成<br/>等待下次 CRON 觸發"])
+
+    %% ── 錯誤處理 ────────────────────────────────────
+    ERROR["❌ 記錄錯誤<br/>(status=error)<br/>不搬移檔案，下次重試"]
+
+    %% ── 連線 ────────────────────────────────────────
+    START --> SCAN
+    SCAN --> SCAN_PROCESSED
+    SCAN_PROCESSED --> FILTER
+    FILTER --> CHECK_EMPTY
+    CHECK_EMPTY -->|"否 (0 筆)"| SUMMARY
+    CHECK_EMPTY -->|"是"| LOOP_START
+
+    LOOP_START -->|"每通電話"| READ_TXT
+    READ_TXT --> VALIDATE
+    VALIDATE -->|"否 (< 3 行)"| SKIP
+    VALIDATE -->|"是"| GPT_CALL
+
+    GPT_CALL --> GPT_Analysis
+    GPT_Analysis --> GPT_RESULT
+    GPT_RESULT --> MOVE
+
+    SKIP --> MOVE
+
+    GPT_CALL -.->|"API 錯誤"| ERROR
+
+    MOVE --> COLLECT
+    ERROR --> COLLECT
+
+    COLLECT --> CLASSIFY
+    CLASSIFY -->|"result = 成功"| SUCCESS_BUCKET
+    CLASSIFY -->|"result = 失敗"| FAILURE_BUCKET
+
+    SUCCESS_BUCKET --> SAVE_JSON
+    FAILURE_BUCKET --> SAVE_JSON
+    SAVE_JSON --> GEN_MD
+    GEN_MD --> SAVE_MD
+    SAVE_MD --> SUMMARY
+    SUMMARY --> DONE
+
+    %% ── 樣式 ────────────────────────────────────────
+    classDef start fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    classDef process fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
+    classDef decision fill:#fff9c4,stroke:#f9a825,color:#f57f17
+    classDef gpt fill:#fce4ec,stroke:#c62828,color:#b71c1c
+    classDef success fill:#c8e6c9,stroke:#388e3c,color:#1b5e20
+    classDef failure fill:#ffcdd2,stroke:#c62828,color:#b71c1c
+    classDef storage fill:#e0f2f1,stroke:#00695c,color:#004d40
+    classDef error fill:#ffcdd2,stroke:#d32f2f,color:#b71c1c
+    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+
+    class START,DONE start
+    class SCAN,SCAN_PROCESSED,FILTER,READ_TXT,LOOP_START,COLLECT process
+    class CHECK_EMPTY,VALIDATE,CLASSIFY decision
+    class GPT_CALL,GPT_RESULT gpt
+    class SUCCESS_BUCKET success
+    class FAILURE_BUCKET failure
+    class MOVE,SKIP,SAVE_JSON,SAVE_MD,GEN_MD,SUMMARY storage
+    class ERROR error

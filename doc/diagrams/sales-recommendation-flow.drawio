@@ -1,0 +1,139 @@
+<mxfile host="app.diagrams.net" agent="Copilot" version="26.0.0">
+<diagram id="flow" name="Sales Recommendation Flow">
+<mxGraphModel dx="0" dy="0" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="1">
+<root>
+<mxCell id="0"/>
+<mxCell id="1" parent="0"/>
+
+<mxCell id="2" value="Sales Recommendation Pipeline — 3-Step Workflow" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontFamily=Segoe UI;fontColor=#323130;" vertex="1" parent="1">
+<mxGeometry x="460" y="10" width="1000" height="40" as="geometry"/>
+</mxCell>
+
+<mxCell id="3" value="&lt;b style=&quot;font-size:14px&quot;&gt;Input&lt;/b&gt;&lt;br&gt;customer_id" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#323130;fontColor=#FFFFFF;strokeColor=#1B1A19;fontSize=12;fontFamily=Segoe UI;size=0.15;" vertex="1" parent="1">
+<mxGeometry x="30" y="450" width="130" height="60" as="geometry"/>
+</mxCell>
+
+<mxCell id="10" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E5F1FB;strokeColor=#0078D4;strokeWidth=2;arcSize=8;shadow=1;" vertex="1" parent="1">
+<mxGeometry x="200" y="70" width="280" height="680" as="geometry"/>
+</mxCell>
+<mxCell id="10h" value="&lt;b&gt;Step 1: Fetch Data&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;~1-2s | MCP Tools&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontFamily=Segoe UI;fontColor=#FFFFFF;fillColor=#0078D4;strokeColor=none;" vertex="1" parent="1">
+<mxGeometry x="210" y="80" width="260" height="45" as="geometry"/>
+</mxCell>
+<mxCell id="11" value="&lt;div style=&quot;text-align:left;padding:8px&quot;&gt;&lt;b style=&quot;color:#0078D4&quot;&gt;query_customer_persona&lt;/b&gt;&lt;br&gt;&lt;br&gt;Azure SQL DB&lt;br&gt;&lt;b&gt;53-field Customer Persona&lt;/b&gt;&lt;br&gt;&lt;br&gt;• Spending power level&lt;br&gt;• Interests &amp;amp; preferences&lt;br&gt;• Family status&lt;br&gt;• Lifestyle tags&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0078D4;strokeWidth=1.5;fontSize=12;fontFamily=Segoe UI;fontColor=#323130;arcSize=8;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+<mxGeometry x="215" y="145" width="250" height="230" as="geometry"/>
+</mxCell>
+<mxCell id="12" value="&lt;div style=&quot;text-align:left;padding:8px&quot;&gt;&lt;b style=&quot;color:#0078D4&quot;&gt;query_call_summary&lt;/b&gt;&lt;br&gt;&lt;br&gt;Cosmos DB&lt;br&gt;&lt;b&gt;Historical Call Records&lt;/b&gt;&lt;br&gt;&lt;br&gt;• Call date &amp;amp; status&lt;br&gt;• Success / failure flag&lt;br&gt;• Call transcript summary&lt;br&gt;• Sentiment analysis&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0078D4;strokeWidth=1.5;fontSize=12;fontFamily=Segoe UI;fontColor=#323130;arcSize=8;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+<mxGeometry x="215" y="405" width="250" height="230" as="geometry"/>
+</mxCell>
+<mxCell id="13" value="&lt;span style=&quot;font-size:11px;color:#0078D4&quot;&gt;Parallel execution&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Segoe UI;" vertex="1" parent="1">
+<mxGeometry x="265" y="378" width="150" height="22" as="geometry"/>
+</mxCell>
+
+<mxCell id="20" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#FF8C00;strokeWidth=2;arcSize=8;shadow=1;" vertex="1" parent="1">
+<mxGeometry x="520" y="70" width="330" height="680" as="geometry"/>
+</mxCell>
+<mxCell id="20h" value="&lt;b&gt;Step 2: Dynamic RAG Query&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;~1-3s | GPT-5-mini + AI Search&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontFamily=Segoe UI;fontColor=#FFFFFF;fillColor=#FF8C00;strokeColor=none;" vertex="1" parent="1">
+<mxGeometry x="530" y="80" width="310" height="45" as="geometry"/>
+</mxCell>
+<mxCell id="21" value="&lt;div style=&quot;text-align:left;padding:8px&quot;&gt;&lt;b style=&quot;color:#FF8C00&quot;&gt;LLM Query Generation&lt;/b&gt;&lt;br&gt;&lt;br&gt;GPT-5-mini analyzes persona to&lt;br&gt;generate search query&lt;br&gt;&lt;br&gt;&lt;b&gt;5 Analysis Dimensions:&lt;/b&gt;&lt;br&gt;1. Spending → Card tier&lt;br&gt;2. Interests → Benefit match&lt;br&gt;3. Family → Shared needs&lt;br&gt;4. Pain points → Targeted search&lt;br&gt;5. Past rejections → Avoidance&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FF8C00;strokeWidth=1.5;fontSize=12;fontFamily=Segoe UI;fontColor=#323130;arcSize=8;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+<mxGeometry x="535" y="145" width="300" height="280" as="geometry"/>
+</mxCell>
+<mxCell id="22" value="&lt;div style=&quot;text-align:left;padding:8px&quot;&gt;&lt;b style=&quot;color:#FF8C00&quot;&gt;search_membership_card&lt;/b&gt;&lt;br&gt;&lt;br&gt;Azure AI Search&lt;br&gt;&lt;b&gt;Hybrid Retrieval&lt;/b&gt;&lt;br&gt;(Keyword + Vector Semantic)&lt;br&gt;&lt;br&gt;→ Top-5 membership docs&lt;br&gt;→ Pricing, benefits, advantages&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FF8C00;strokeWidth=1.5;fontSize=12;fontFamily=Segoe UI;fontColor=#323130;arcSize=8;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+<mxGeometry x="535" y="455" width="300" height="210" as="geometry"/>
+</mxCell>
+
+<mxCell id="30" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#5C2D91;strokeWidth=2;arcSize=8;shadow=1;" vertex="1" parent="1">
+<mxGeometry x="890" y="70" width="460" height="680" as="geometry"/>
+</mxCell>
+<mxCell id="30h" value="&lt;b&gt;Step 3: GPT-5 Script Generation&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;~30-60s | GPT-5.2&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontFamily=Segoe UI;fontColor=#FFFFFF;fillColor=#5C2D91;strokeColor=none;" vertex="1" parent="1">
+<mxGeometry x="900" y="80" width="440" height="45" as="geometry"/>
+</mxCell>
+<mxCell id="31" value="&lt;div style=&quot;text-align:center;padding:4px&quot;&gt;&lt;b style=&quot;color:#5C2D91&quot;&gt;Assemble Prompt&lt;/b&gt;&lt;br&gt;System: Senior Sales Strategy Advisor&lt;br&gt;User: Persona + Calls + Benefits&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#5C2D91;strokeWidth=1.5;fontSize=12;fontFamily=Segoe UI;fontColor=#323130;arcSize=8;" vertex="1" parent="1">
+<mxGeometry x="910" y="150" width="430" height="75" as="geometry"/>
+</mxCell>
+<mxCell id="32" value="Suitable?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#5C2D91;fontColor=#FFFFFF;strokeColor=#4B2578;strokeWidth=2;fontSize=13;fontFamily=Segoe UI;fontStyle=1;arcSize=10;" vertex="1" parent="1">
+<mxGeometry x="1050" y="250" width="140" height="70" as="geometry"/>
+</mxCell>
+<mxCell id="33" value="&lt;div style=&quot;text-align:left;padding:5px&quot;&gt;&lt;b style=&quot;color:#107C10;font-size:13px&quot;&gt;7-Part Sales Script&lt;/b&gt;&lt;br&gt;&lt;br&gt;1. Opening&lt;br&gt;2. Needs Discovery&lt;br&gt;3. Product Pitch&lt;br&gt;4. Benefit Highlight&lt;br&gt;5. Objection Handling&lt;br&gt;6. Closing&lt;br&gt;7. Follow-up Strategy&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#107C10;strokeWidth=1.5;fontSize=12;fontFamily=Segoe UI;fontColor=#323130;arcSize=8;verticalAlign=top;" vertex="1" parent="1">
+<mxGeometry x="905" y="350" width="200" height="250" as="geometry"/>
+</mxCell>
+<mxCell id="34" value="&lt;div style=&quot;text-align:left;padding:5px&quot;&gt;&lt;b style=&quot;color:#D13438;font-size:13px&quot;&gt;Alternative Strategy&lt;/b&gt;&lt;br&gt;&lt;br&gt;• Relationship building&lt;br&gt;• Follow-up plan&lt;br&gt;• Suggested re-contact&lt;br&gt;&amp;nbsp; timing&lt;br&gt;• Alternative product&lt;br&gt;&amp;nbsp; recommendations&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDECEC;strokeColor=#D13438;strokeWidth=1.5;fontSize=12;fontFamily=Segoe UI;fontColor=#323130;arcSize=8;verticalAlign=top;" vertex="1" parent="1">
+<mxGeometry x="1135" y="350" width="200" height="250" as="geometry"/>
+</mxCell>
+
+<mxCell id="35" value="true" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#107C10;fontFamily=Segoe UI;fontSize=11;fontColor=#107C10;fontStyle=1;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="32" target="33" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+<mxCell id="36" value="false" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#D13438;fontFamily=Segoe UI;fontSize=11;fontColor=#D13438;fontStyle=1;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="32" target="34" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+<mxCell id="55" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#5C2D91;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="31" target="32" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+<mxCell id="56" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#FF8C00;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="21" target="22" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="40" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FFF0;strokeColor=#107C10;strokeWidth=2;arcSize=8;shadow=1;" vertex="1" parent="1">
+<mxGeometry x="1390" y="70" width="310" height="680" as="geometry"/>
+</mxCell>
+<mxCell id="40h" value="&lt;b&gt;JSON Output&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:11px&quot;&gt;with Debug Trace Info&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontFamily=Segoe UI;fontColor=#FFFFFF;fillColor=#107C10;strokeColor=none;" vertex="1" parent="1">
+<mxGeometry x="1400" y="80" width="290" height="45" as="geometry"/>
+</mxCell>
+<mxCell id="41" value="&lt;div style=&quot;text-align:left;padding:8px;font-size:12px;line-height:1.8&quot;&gt;&lt;b style=&quot;color:#107C10&quot;&gt;Customer Profile Summary&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b style=&quot;color:#107C10&quot;&gt;Suitability Assessment&lt;/b&gt;&lt;br&gt;• Confidence: High / Med / Low&lt;br&gt;• Positive / negative factors&lt;br&gt;&lt;br&gt;&lt;b style=&quot;color:#107C10&quot;&gt;Recommended Plan&lt;/b&gt;&lt;br&gt;• Card name, monthly cost&lt;br&gt;• Key benefits&lt;br&gt;&lt;br&gt;&lt;b style=&quot;color:#107C10&quot;&gt;Sales Script (7 parts)&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b style=&quot;color:#D13438&quot;&gt;Taboos List&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b style=&quot;color:#107C10&quot;&gt;Success Probability&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b style=&quot;color:#107C10&quot;&gt;Debug: Step Durations&lt;/b&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#107C10;strokeWidth=1.5;fontSize=12;fontFamily=Segoe UI;fontColor=#323130;arcSize=8;verticalAlign=top;spacingTop=2;" vertex="1" parent="1">
+<mxGeometry x="1405" y="145" width="280" height="450" as="geometry"/>
+</mxCell>
+
+<mxCell id="50" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;strokeColor=#323130;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="3" target="10" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+<mxCell id="51" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;strokeColor=#0078D4;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="10" target="20" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+<mxCell id="52" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;strokeColor=#FF8C00;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="20" target="30" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+<mxCell id="53" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;strokeColor=#5C2D91;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="30" target="40" parent="1">
+<mxGeometry relative="1" as="geometry"/>
+</mxCell>
+
+<mxCell id="60" value="POST /sales/recommendation" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Segoe UI;fontSize=11;fontColor=#8A8886;fontStyle=2;" vertex="1" parent="1">
+<mxGeometry x="10" y="515" width="175" height="25" as="geometry"/>
+</mxCell>
+
+<mxCell id="70" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/databases/SQL_Database.svg;fontFamily=Segoe UI;fontSize=9;fontColor=#0078D4;html=1;" vertex="1" parent="1">
+<mxGeometry x="240" y="660" width="26" height="26" as="geometry"/>
+</mxCell>
+<mxCell id="71" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/databases/Azure_Cosmos_DB.svg;fontFamily=Segoe UI;fontSize=9;fontColor=#0078D4;html=1;" vertex="1" parent="1">
+<mxGeometry x="410" y="660" width="26" height="26" as="geometry"/>
+</mxCell>
+<mxCell id="72" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/ai_machine_learning/Azure_OpenAI.svg;fontFamily=Segoe UI;fontSize=9;fontColor=#FF8C00;html=1;" vertex="1" parent="1">
+<mxGeometry x="610" y="660" width="26" height="26" as="geometry"/>
+</mxCell>
+<mxCell id="73" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/analytics/Search_Services.svg;fontFamily=Segoe UI;fontSize=9;fontColor=#FF8C00;html=1;" vertex="1" parent="1">
+<mxGeometry x="760" y="660" width="26" height="26" as="geometry"/>
+</mxCell>
+<mxCell id="74" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;aspect=fixed;imageAspect=0;image=img/lib/azure2/ai_machine_learning/Azure_OpenAI.svg;fontFamily=Segoe UI;fontSize=9;fontColor=#5C2D91;html=1;" vertex="1" parent="1">
+<mxGeometry x="1100" y="660" width="26" height="26" as="geometry"/>
+</mxCell>
+
+<mxCell id="80" value="SQL DB" style="text;html=1;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontFamily=Segoe UI;fontSize=9;fontColor=#0078D4;" vertex="1" parent="1">
+<mxGeometry x="223" y="688" width="60" height="20" as="geometry"/>
+</mxCell>
+<mxCell id="81" value="Cosmos DB" style="text;html=1;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontFamily=Segoe UI;fontSize=9;fontColor=#0078D4;" vertex="1" parent="1">
+<mxGeometry x="390" y="688" width="66" height="20" as="geometry"/>
+</mxCell>
+<mxCell id="82" value="GPT-5-mini" style="text;html=1;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontFamily=Segoe UI;fontSize=9;fontColor=#FF8C00;" vertex="1" parent="1">
+<mxGeometry x="592" y="688" width="64" height="20" as="geometry"/>
+</mxCell>
+<mxCell id="83" value="AI Search" style="text;html=1;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontFamily=Segoe UI;fontSize=9;fontColor=#FF8C00;" vertex="1" parent="1">
+<mxGeometry x="743" y="688" width="60" height="20" as="geometry"/>
+</mxCell>
+<mxCell id="84" value="GPT-5.2" style="text;html=1;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontFamily=Segoe UI;fontSize=9;fontColor=#5C2D91;" vertex="1" parent="1">
+<mxGeometry x="1085" y="688" width="56" height="20" as="geometry"/>
+</mxCell>
+
+</root>
+</mxGraphModel>
+</diagram>
+</mxfile>

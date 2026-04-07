@@ -44,6 +44,7 @@ Write-Host ""  # blank line
 #region Early Docker validation
 $pausedPattern   = 'Docker Desktop is manually paused'
 $daemonDownRegex = '((?i)error during connect|Cannot connect to the Docker daemon|Is the docker daemon running|The Docker daemon is not running|dockerDesktopLinuxEngine|dockerDesktopWindowsEngine|The system cannot find the file specified|open \\./pipe/|context deadline exceeded)'
+$script:useLocalDocker = $false
 
 # Optional: try service check, but do NOT fail based on it
 try {
@@ -61,19 +62,18 @@ if (Get-Command docker -ErrorAction SilentlyContinue) {
 
     if ($probeText -match $pausedPattern -or $probeText -match $daemonDownRegex -or $probeExit -ne 0) {
         if ($probeText -match $pausedPattern) {
-            Write-ErrorColored '❌ Docker Desktop is manually paused. Unpause it via the Whale menu or Dashboard.'
+            Write-Yellow '⚠️  Docker Desktop is manually paused.'
         } else {
-            Write-ErrorColored '❌ Docker Desktop is not running.'
+            Write-Yellow '⚠️  Docker Desktop is not running.'
         }
-        Write-Yellow '⚠️  Please start/unpause Docker Desktop and re-run this script.'
-        exit 1
+        Write-Yellow '⚠️  Will use az acr build (cloud build) instead.'
+    } else {
+        $script:useLocalDocker = $true
+        Write-Green "✅ Docker is available."
     }
 } else {
-    Write-ErrorColored '❌ Docker CLI not found on this system.'
-    Write-Yellow '⚠️  Please install Docker Desktop and re-run this script.'
-    exit 1
+    Write-Yellow '⚠️  Docker CLI not found. Will use az acr build (cloud build) instead.'
 }
-Write-Green "✅ Docker is available."
 Write-Host ""
 #endregion
 
@@ -126,67 +126,129 @@ try {
     Write-Yellow "⚠️  Not logged in. Please run 'az login'."
     exit 1
 }
+
+# Resolve subscription: env var > azd .env > current default
+$subscriptionId = $null
+$script:appConfigConnStr = $null
+if ($env:AZURE_SUBSCRIPTION_ID) {
+    $subscriptionId = $env:AZURE_SUBSCRIPTION_ID.Trim()
+    Write-Green ("✅ Using AZURE_SUBSCRIPTION_ID from env: {0}" -f $subscriptionId)
+}
+if ($env:APP_CONFIG_CONNECTION_STRING) {
+    $script:appConfigConnStr = $env:APP_CONFIG_CONNECTION_STRING.Trim()
+}
+
+# Try to load missing values from .azure/sensengo-prod/.env
+$azdEnvFile = Join-Path $PSScriptRoot '..' '.azure' 'sensengo-prod' '.env'
+if (Test-Path $azdEnvFile) {
+    foreach ($line in Get-Content $azdEnvFile) {
+        if (-not $subscriptionId -and $line -match '^\s*AZURE_SUBSCRIPTION_ID\s*=\s*"?([^"]+)"?\s*$') {
+            $subscriptionId = $Matches[1].Trim()
+            Write-Green ("✅ Using AZURE_SUBSCRIPTION_ID from .azure env: {0}" -f $subscriptionId)
+        }
+        if (-not $script:appConfigConnStr -and $line -match '^\s*APP_CONFIG_CONNECTION_STRING\s*=\s*"?([^"]+)"?\s*$') {
+            $script:appConfigConnStr = $Matches[1].Trim()
+            Write-Green "✅ Using APP_CONFIG_CONNECTION_STRING from .azure env"
+        }
+    }
+}
+
+if ($subscriptionId) {
+    $script:subArgs = @('--subscription', $subscriptionId)
+    Write-Blue ("🔒 All az commands will use --subscription {0}" -f $subscriptionId)
+} else {
+    $script:subArgs = @()
+    Write-Yellow "⚠️  No AZURE_SUBSCRIPTION_ID set — using current default subscription."
+}
 Write-Green "✅ Azure CLI is logged in."
 Write-Host ""
 #endregion
 
 #region Fetch App Configuration values
 $label = "gpt-rag"
-Write-Green "⚙️ Loading App Configuration settings (label=$label)…"
-Write-Host ""
 
-function Get-ConfigValue {
-    param(
-        [Parameter(Mandatory=$true)][string]$Key
-    )
-    Write-Blue ("🛠️  Retrieving '{0}' (label={1}) from App Configuration…" -f $Key, $label)
-    try {
-        $val = az appconfig kv show `
-            --name $configName `
-            --key $Key `
-            --label $label `
-            --auth-mode login `
-            --endpoint $APP_CONFIG_ENDPOINT `
-            --query value -o tsv 2>&1
-        $exitCode = $LASTEXITCODE
-    } catch {
-        $val = $_.Exception.Message
-        $exitCode = 1
-    }
-    if ($exitCode -ne 0 -or [string]::IsNullOrWhiteSpace($val)) {
-        Write-Yellow ("⚠️  Key '{0}' not found or empty. CLI output: {1}" -f $Key, $val)
-        return $null
-    }
-    return $val.Trim()
-}
-
-# Define required keys
+# Define required keys and allow env var overrides
 $keyNames = @('CONTAINER_REGISTRY_NAME', 'CONTAINER_REGISTRY_LOGIN_SERVER', 'SUBSCRIPTION_ID', 'AZURE_RESOURCE_GROUP', 'RESOURCE_TOKEN', 'ORCHESTRATOR_APP_NAME')
 $values = @{}
-$missing = @()
+$needFromAppConfig = @()
 
+# Phase 1: Try environment variables first
 foreach ($k in $keyNames) {
-    $v = Get-ConfigValue -Key $k
-    if ($null -eq $v) {
-        # try uppercase fallback
-        $upperKey = $k.ToUpper()
-        if ($upperKey -ne $k) {
-            Write-Blue ("🔍 Trying uppercase key '{0}'…" -f $upperKey)
-            $v = Get-ConfigValue -Key $upperKey
+    $envVal = [System.Environment]::GetEnvironmentVariable($k)
+    if ($envVal) {
+        $values[$k] = $envVal.Trim()
+        Write-Green ("✅ {0} = {1} (from env)" -f $k, $values[$k])
+    } else {
+        $needFromAppConfig += $k
+    }
+}
+
+# Phase 2: For missing keys, try App Configuration
+if ($needFromAppConfig.Count -gt 0) {
+    Write-Green "⚙️ Loading remaining settings from App Configuration (label=$label)…"
+    Write-Host ""
+
+    function Get-ConfigValue {
+        param(
+            [Parameter(Mandatory=$true)][string]$Key
+        )
+        Write-Blue ("🛠️  Retrieving '{0}' (label={1}) from App Configuration…" -f $Key, $label)
+        try {
+            if ($script:appConfigConnStr) {
+                $val = az appconfig kv show `
+                    --connection-string $script:appConfigConnStr `
+                    --key $Key `
+                    --label $label `
+                    --query value -o tsv 2>&1
+            } else {
+                $val = az appconfig kv show `
+                    --name $configName `
+                    --key $Key `
+                    --label $label `
+                    --auth-mode login `
+                    --endpoint $APP_CONFIG_ENDPOINT `
+                    @script:subArgs `
+                    --query value -o tsv 2>&1
+            }
+            $exitCode = $LASTEXITCODE
+        } catch {
+            $val = $_.Exception.Message
+            $exitCode = 1
+        }
+        if ($exitCode -ne 0 -or [string]::IsNullOrWhiteSpace($val)) {
+            Write-Yellow ("⚠️  Key '{0}' not found or empty. CLI output: {1}" -f $Key, $val)
+            return $null
+        }
+        return $val.Trim()
+    }
+
+    $missing = @()
+    foreach ($k in $needFromAppConfig) {
+        $v = Get-ConfigValue -Key $k
+        if ($null -eq $v) {
+            $upperKey = $k.ToUpper()
+            if ($upperKey -ne $k) {
+                Write-Blue ("🔍 Trying uppercase key '{0}'…" -f $upperKey)
+                $v = Get-ConfigValue -Key $upperKey
+            }
+        }
+        if ($null -eq $v) {
+            $missing += $k
+        } else {
+            $values[$k] = $v
         }
     }
-    if ($null -eq $v) {
-        $missing += $k
-    } else {
-        $values[$k] = $v
+    if ($missing.Count -gt 0) {
+        Write-Yellow ("⚠️  Missing or invalid keys: {0}" -f ($missing -join ', '))
+        Write-Host "  💡 Tip: Set them as env vars to bypass App Config, e.g.:"
+        foreach ($m in $missing) {
+            Write-Host ("     `$env:{0} = '<value>'" -f $m)
+        }
+        exit 1
     }
 }
-if ($missing.Count -gt 0) {
-    Write-Yellow ("⚠️  Missing or invalid App Config keys: {0}" -f ($missing -join ', '))
-    exit 1
-}
 
-Write-Green "✅ All App Configuration values retrieved:"
+Write-Green "✅ All configuration values resolved:"
 Write-Host ("   CONTAINER_REGISTRY_NAME = {0}" -f $values.CONTAINER_REGISTRY_NAME)
 Write-Host ("   CONTAINER_REGISTRY_LOGIN_SERVER = {0}" -f $values.CONTAINER_REGISTRY_LOGIN_SERVER)
 Write-Host ("   AZURE_RESOURCE_GROUP = {0}" -f $values.AZURE_RESOURCE_GROUP)
@@ -194,17 +256,22 @@ Write-Host ("   ORCHESTRATOR_APP_NAME = {0}" -f $values.ORCHESTRATOR_APP_NAME)
 Write-Host ""
 #endregion
 
-#region Login to ACR
-Write-Green ("🔐 Logging into ACR ({0} in {1})…" -f $values.CONTAINER_REGISTRY_NAME, $values.AZURE_RESOURCE_GROUP)
-try {
-    az acr login --name $values.CONTAINER_REGISTRY_NAME --resource-group $values.AZURE_RESOURCE_GROUP
-    Write-Green "✅ Logged into ACR."
-} catch {
-    $errMsg = $_.Exception.Message
-    Write-Yellow ("⚠️  Failed to login to ACR: {0}" -f $errMsg)
-    exit 1
+#region Login to ACR (only needed for local Docker build)
+if ($script:useLocalDocker) {
+    Write-Green ("🔐 Logging into ACR ({0} in {1})…" -f $values.CONTAINER_REGISTRY_NAME, $values.AZURE_RESOURCE_GROUP)
+    try {
+        az acr login --name $values.CONTAINER_REGISTRY_NAME --resource-group $values.AZURE_RESOURCE_GROUP @script:subArgs
+        Write-Green "✅ Logged into ACR."
+    } catch {
+        $errMsg = $_.Exception.Message
+        Write-Yellow ("⚠️  Failed to login to ACR: {0}" -f $errMsg)
+        exit 1
+    }
+    Write-Host ""
+} else {
+    Write-Green "ℹ️  Skipping ACR login (using cloud build)."
+    Write-Host ""
 }
-Write-Host ""
 #endregion
 
 #region Determine tag
@@ -263,7 +330,7 @@ if ($env:tag) {
 #region Build or ACR build image
 $fullImageName = "$($values.CONTAINER_REGISTRY_LOGIN_SERVER)/azure-gpt-rag/orchestrator:$tag"
 Write-Green "🛠️  Building Docker image…"
-if (Get-Command docker -ErrorAction SilentlyContinue) {
+if ($script:useLocalDocker) {
     try {
         docker build -t $fullImageName .
         Write-Green "✅ Docker build succeeded."
@@ -273,12 +340,13 @@ if (Get-Command docker -ErrorAction SilentlyContinue) {
         exit 1
     }
 } else {
-    Write-Blue "⚠️  Docker CLI not found locally. Falling back to 'az acr build'."
+    Write-Blue "☁️  Using az acr build (cloud build)…"
     try {
         az acr build `
             --registry $values.CONTAINER_REGISTRY_NAME `
             --image "azure-gpt-rag/orchestrator:$tag" `
             --file Dockerfile `
+            @script:subArgs `
             .
         Write-Green "✅ ACR cloud build succeeded."
     } catch {
@@ -296,6 +364,7 @@ try {
     $ids = $(az containerapp identity show `
         --name $values.ORCHESTRATOR_APP_NAME `
         --resource-group $values.AZURE_RESOURCE_GROUP `
+        @script:subArgs `
         --output json) | ConvertFrom-Json
 
     if ($ids.type.tostring().contains("UserAssigned"))
@@ -305,13 +374,15 @@ try {
             --resource-group $values.AZURE_RESOURCE_GROUP `
             --server "$($values.CONTAINER_REGISTRY_NAME).azurecr.io" `
             --identity "/subscriptions/$($values.SUBSCRIPTION_ID)/resourceGroups/$($values.AZURE_RESOURCE_GROUP)/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-ca-$($values.RESOURCE_TOKEN)-orchestrator" `
+            @script:subArgs
     }
     else {
         az containerapp registry set `
         --name $values.ORCHESTRATOR_APP_NAME `
         --resource-group $values.AZURE_RESOURCE_GROUP `
         --server "$($values.CONTAINER_REGISTRY_NAME).azurecr.io" `
-        --identity "system"
+        --identity "system" `
+        @script:subArgs
     }
     
 
@@ -323,7 +394,7 @@ try {
 }
 
 #region Push Docker image (if local build used)
-if (Get-Command docker -ErrorAction SilentlyContinue) {
+if ($script:useLocalDocker) {
     Write-Green "📤 Pushing image…"
     try {
         docker push $fullImageName
@@ -347,7 +418,8 @@ try {
     az containerapp update `
         --name $values.ORCHESTRATOR_APP_NAME `
         --resource-group $values.AZURE_RESOURCE_GROUP `
-        --image $fullImageName
+        --image $fullImageName `
+        @script:subArgs
     Write-Green "✅ Container app updated."
 } catch {
     $errMsg = $_.Exception.Message
@@ -360,6 +432,7 @@ Write-Blue "🔍 Fetching current revision…"
 $currentRevision = az containerapp revision list `
     --name $values.ORCHESTRATOR_APP_NAME `
     --resource-group $values.AZURE_RESOURCE_GROUP `
+    @script:subArgs `
     --query "[0].name" -o tsv
 
 
@@ -369,7 +442,8 @@ try {
     az containerapp revision restart `
         --name $values.ORCHESTRATOR_APP_NAME `
         --resource-group $values.AZURE_RESOURCE_GROUP `
-        --revision $currentRevision
+        --revision $currentRevision `
+        @script:subArgs
         
     Write-Green "✅ Container app restarted."
 } catch {

@@ -257,6 +257,85 @@ async def demo_page():
     return HTMLResponse(content=html)
 
 
+# ── Sales Call Insights Endpoint ──────────────────────────────────
+
+@app.get(
+    "/sales/insights/{customer_id}",
+    dependencies=[Depends(validate_auth)],
+    summary="Get call transcript insights for a customer",
+)
+async def sales_insights_endpoint(customer_id: str):
+    """
+    1. Query Cosmos call-transcripts for the customer's call_ids.
+    2. Read sales_insights blobs and filter matching analyses.
+    """
+    from connectors.call_transcripts import CallTranscriptClient
+    from connectors.sales_insights import SalesInsightsClient
+
+    # Step 1: get call_ids from Cosmos
+    ct = CallTranscriptClient()
+    raw = await ct.query_call_transcripts(customer_id=customer_id, top="50")
+    import json as _json
+    parsed = _json.loads(raw) if isinstance(raw, str) else raw
+    records = parsed.get("records", []) if isinstance(parsed, dict) else parsed
+    call_ids = list({r.get("call_id") for r in records if isinstance(r, dict) and r.get("call_id")})
+
+    # Step 2: read and filter blob insights
+    si = SalesInsightsClient()
+    result = await si.get_insights_for_customer(customer_id, call_ids)
+    result["call_ids"] = call_ids
+    return result
+
+
+# ── Pipeline admin proxy (ingestion service) ─────────────────────
+
+import httpx as _httpx
+
+def _ingestion_base_url() -> str:
+    return (cfg.get("INGESTION_BASE_URL", "") or "").rstrip("/")
+
+def _ingestion_api_key() -> str:
+    return cfg.get("INGESTION_APP_APIKEY", "") or ""
+
+@app.get("/api/pipelines", dependencies=[Depends(validate_auth)], summary="Get pipeline status")
+async def get_pipelines():
+    base, key = _ingestion_base_url(), _ingestion_api_key()
+    if not base or not key:
+        raise HTTPException(503, "INGESTION_BASE_URL or INGESTION_APP_APIKEY not configured")
+    try:
+        async with _httpx.AsyncClient(timeout=30) as c:
+            r = await c.get(f"{base}/api/pipelines", headers={"X-API-KEY": key})
+        if r.status_code != 200:
+            raise HTTPException(r.status_code, f"Ingestion service returned {r.status_code}")
+        return r.json()
+    except HTTPException:
+        raise
+    except _httpx.TimeoutException:
+        raise HTTPException(504, "Ingestion service timeout — it may still be starting up")
+    except Exception as exc:
+        logging.exception("Failed to reach ingestion service")
+        raise HTTPException(502, f"Cannot connect to ingestion service: {exc}")
+
+@app.post("/api/pipelines/{group_id}/toggle", dependencies=[Depends(validate_auth)], summary="Toggle pipeline group")
+async def toggle_pipeline(group_id: str):
+    base, key = _ingestion_base_url(), _ingestion_api_key()
+    if not base or not key:
+        raise HTTPException(503, "INGESTION_BASE_URL or INGESTION_APP_APIKEY not configured")
+    try:
+        async with _httpx.AsyncClient(timeout=30) as c:
+            r = await c.post(f"{base}/api/pipelines/{group_id}/toggle", headers={"X-API-KEY": key})
+        if r.status_code != 200:
+            raise HTTPException(r.status_code, f"Ingestion service returned {r.status_code}")
+        return r.json()
+    except HTTPException:
+        raise
+    except _httpx.TimeoutException:
+        raise HTTPException(504, "Ingestion service timeout")
+    except Exception as exc:
+        logging.exception("Failed to reach ingestion service")
+        raise HTTPException(502, f"Cannot connect to ingestion service: {exc}")
+
+
 # Instrumentation
 HTTPXClientInstrumentor().instrument()
 FastAPIInstrumentor.instrument_app(app)

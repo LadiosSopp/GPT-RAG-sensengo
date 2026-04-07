@@ -1,0 +1,1855 @@
+{
+  "eTag": null,
+  "id": "subscriptions/2c9b3248-f263-4104-bd24-6446d4db84b9/resourcegroups/GPRAG/providers/Microsoft.CostManagement/query/35467f9b-bacb-4874-aef1-d4f1a9ce5b8e",
+  "location": null,
+  "name": "35467f9b-bacb-4874-aef1-d4f1a9ce5b8e",
+  "properties": {
+    "columns": [
+      {
+        "name": "PreTaxCost",
+        "type": "Number"
+      },
+      {
+        "name": "UsageDate",
+        "type": "Number"
+      },
+      {
+        "name": "MeterCategory",
+        "type": "String"
+      },
+      {
+        "name": "MeterSubcategory",
+        "type": "String"
+      },
+      {
+        "name": "Meter",
+        "type": "String"
+      },
+      {
+        "name": "Currency",
+        "type": "String"
+      }
+    ],
+    "nextLink": null,
+    "rows": [
+      [
+        38.585,
+        20260317,
+        "App Configuration",
+        "",
+        "Standard Instance",
+        "TWD"
+      ],
+      [
+        155.856,
+        20260317,
+        "Azure Cognitive Search",
+        "AI",
+        "Basic Unit",
+        "TWD"
+      ],
+      [
+        18.07233552,
+        20260317,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Active Usage",
+        "TWD"
+      ],
+      [
+        19.10628864,
+        20260317,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Idle Usage",
+        "TWD"
+      ],
+      [
+        68.9429063,
+        20260317,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Active Usage",
+        "TWD"
+      ],
+      [
+        9.11199744,
+        20260317,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Idle Usage",
+        "TWD"
+      ],
+      [
+        27.78084,
+        20260317,
+        "Azure Cosmos DB",
+        "",
+        "100 RU/s",
+        "TWD"
+      ],
+      [
+        0.0137101157365307,
+        20260317,
+        "Azure Cosmos DB",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        0.0023472566,
+        20260317,
+        "Azure Cosmos DB",
+        "Analytics Storage",
+        "Standard Read Operations",
+        "TWD"
+      ],
+      [
+        0.00569252429777576,
+        20260317,
+        "Azure Cosmos DB",
+        "PITR",
+        "Cont 30D Bckp Continuous Backup",
+        "TWD"
+      ],
+      [
+        0.0007636575,
+        20260317,
+        "Azure Cosmos DB",
+        "serverless",
+        "1M RUs",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260317,
+        "Bandwidth",
+        "",
+        "Standard Data Transfer In",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260317,
+        "Bandwidth",
+        "",
+        "Standard Data Transfer Out",
+        "TWD"
+      ],
+      [
+        5.348042784,
+        20260317,
+        "Container Registry",
+        "",
+        "Basic Registry Unit",
+        "TWD"
+      ],
+      [
+        0.5528430144,
+        20260317,
+        "Container Registry",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        3.5626632,
+        20260317,
+        "Container Registry",
+        "",
+        "Task vCPU Duration",
+        "TWD"
+      ],
+      [
+        0.0069264257,
+        20260317,
+        "Foundry Models",
+        "Azure OpenAI",
+        "text-embedding-3-large-regional Tokens",
+        "TWD"
+      ],
+      [
+        8.0488608,
+        20260317,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 cd inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        32.52647961,
+        20260317,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        210.64832056,
+        20260317,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 opt Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        615.42756,
+        20260317,
+        "Foundry Tools",
+        "Azure Document Intelligence",
+        "S0 Pre-built Pages",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260317,
+        "Log Analytics",
+        "",
+        "Analytics Logs Data Ingestion",
+        "TWD"
+      ],
+      [
+        5.176,
+        20260317,
+        "SQL Database",
+        "Single Basic",
+        "B DTU",
+        "TWD"
+      ],
+      [
+        0.03312736,
+        20260317,
+        "Storage",
+        "Tiered Block Blob",
+        "All Other Operations",
+        "TWD"
+      ],
+      [
+        0.015454296,
+        20260317,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Data Stored",
+        "TWD"
+      ],
+      [
+        0.10224972,
+        20260317,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Write Operations",
+        "TWD"
+      ],
+      [
+        0.0327287,
+        20260317,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot Read Operations",
+        "TWD"
+      ],
+      [
+        0.10224972,
+        20260317,
+        "Storage",
+        "Tiered Block Blob",
+        "LRS List and Create Container Operations",
+        "TWD"
+      ],
+      [
+        38.585,
+        20260318,
+        "App Configuration",
+        "",
+        "Standard Instance",
+        "TWD"
+      ],
+      [
+        155.856,
+        20260318,
+        "Azure Cognitive Search",
+        "AI",
+        "Basic Unit",
+        "TWD"
+      ],
+      [
+        19.63044543,
+        20260318,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Active Usage",
+        "TWD"
+      ],
+      [
+        19.5969714,
+        20260318,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Idle Usage",
+        "TWD"
+      ],
+      [
+        74.8903982,
+        20260318,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Active Usage",
+        "TWD"
+      ],
+      [
+        9.3460094,
+        20260318,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Idle Usage",
+        "TWD"
+      ],
+      [
+        27.78084,
+        20260318,
+        "Azure Cosmos DB",
+        "",
+        "100 RU/s",
+        "TWD"
+      ],
+      [
+        0.0135426770461503,
+        20260318,
+        "Azure Cosmos DB",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        0.0001286168,
+        20260318,
+        "Azure Cosmos DB",
+        "Analytics Storage",
+        "Standard Read Operations",
+        "TWD"
+      ],
+      [
+        0.00548418742764381,
+        20260318,
+        "Azure Cosmos DB",
+        "PITR",
+        "Cont 30D Bckp Continuous Backup",
+        "TWD"
+      ],
+      [
+        0.0010048125,
+        20260318,
+        "Azure Cosmos DB",
+        "serverless",
+        "1M RUs",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260318,
+        "Bandwidth",
+        "",
+        "Standard Data Transfer In",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260318,
+        "Bandwidth",
+        "",
+        "Standard Data Transfer Out",
+        "TWD"
+      ],
+      [
+        5.348042784,
+        20260318,
+        "Container Registry",
+        "",
+        "Basic Registry Unit",
+        "TWD"
+      ],
+      [
+        0.7816508784,
+        20260318,
+        "Container Registry",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        0.996774,
+        20260318,
+        "Container Registry",
+        "",
+        "Task vCPU Duration",
+        "TWD"
+      ],
+      [
+        2.9274034519,
+        20260318,
+        "Foundry Models",
+        "Azure OpenAI",
+        "text-embedding-3-large-regional Tokens",
+        "TWD"
+      ],
+      [
+        5.988208384,
+        20260318,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 cd inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        19.79224099,
+        20260318,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        159.45027328,
+        20260318,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 opt Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        613.49832,
+        20260318,
+        "Foundry Tools",
+        "Azure Document Intelligence",
+        "S0 Pre-built Pages",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260318,
+        "Log Analytics",
+        "",
+        "Analytics Logs Data Ingestion",
+        "TWD"
+      ],
+      [
+        5.176,
+        20260318,
+        "SQL Database",
+        "Single Basic",
+        "B DTU",
+        "TWD"
+      ],
+      [
+        9.646e-06,
+        20260318,
+        "Storage",
+        "Files",
+        "Read Operations",
+        "TWD"
+      ],
+      [
+        0.03326882,
+        20260318,
+        "Storage",
+        "Tiered Block Blob",
+        "All Other Operations",
+        "TWD"
+      ],
+      [
+        0.015457013,
+        20260318,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Data Stored",
+        "TWD"
+      ],
+      [
+        0.10305357,
+        20260318,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Write Operations",
+        "TWD"
+      ],
+      [
+        0.03301162,
+        20260318,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot Read Operations",
+        "TWD"
+      ],
+      [
+        0.10353588,
+        20260318,
+        "Storage",
+        "Tiered Block Blob",
+        "LRS List and Create Container Operations",
+        "TWD"
+      ],
+      [
+        38.585,
+        20260319,
+        "App Configuration",
+        "",
+        "Standard Instance",
+        "TWD"
+      ],
+      [
+        155.856,
+        20260319,
+        "Azure Cognitive Search",
+        "AI",
+        "Basic Unit",
+        "TWD"
+      ],
+      [
+        16.20183504,
+        20260319,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Active Usage",
+        "TWD"
+      ],
+      [
+        28.50814248,
+        20260319,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Idle Usage",
+        "TWD"
+      ],
+      [
+        61.8108549,
+        20260319,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Active Usage",
+        "TWD"
+      ],
+      [
+        13.59584408,
+        20260319,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Idle Usage",
+        "TWD"
+      ],
+      [
+        27.78084,
+        20260319,
+        "Azure Cosmos DB",
+        "",
+        "100 RU/s",
+        "TWD"
+      ],
+      [
+        0.0135586078859145,
+        20260319,
+        "Azure Cosmos DB",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        9.64626e-05,
+        20260319,
+        "Azure Cosmos DB",
+        "Analytics Storage",
+        "Standard Read Operations",
+        "TWD"
+      ],
+      [
+        0.00548497876813335,
+        20260319,
+        "Azure Cosmos DB",
+        "PITR",
+        "Cont 30D Bckp Continuous Backup",
+        "TWD"
+      ],
+      [
+        0.0003135015,
+        20260319,
+        "Azure Cosmos DB",
+        "serverless",
+        "1M RUs",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260319,
+        "Bandwidth",
+        "",
+        "Standard Data Transfer In",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260319,
+        "Bandwidth",
+        "",
+        "Standard Data Transfer Out",
+        "TWD"
+      ],
+      [
+        5.348042784,
+        20260319,
+        "Container Registry",
+        "",
+        "Basic Registry Unit",
+        "TWD"
+      ],
+      [
+        0.9097395528,
+        20260319,
+        "Container Registry",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        4.9067004,
+        20260319,
+        "Container Registry",
+        "",
+        "Task vCPU Duration",
+        "TWD"
+      ],
+      [
+        6.4822733546,
+        20260319,
+        "Foundry Models",
+        "Azure OpenAI",
+        "text-embedding-3-large-regional Tokens",
+        "TWD"
+      ],
+      [
+        0.3117690624,
+        20260319,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "5.4 cd inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        5.378144944,
+        20260319,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "5.4 inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        19.6810676,
+        20260319,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "5.4 opt Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        0.027773363,
+        20260319,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5 Mini Inpt Glbl 1M Tokens",
+        "TWD"
+      ],
+      [
+        0.0514472,
+        20260319,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5 Mini outpt Glbl 1M Tokens",
+        "TWD"
+      ],
+      [
+        0.01852414984,
+        20260319,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5 Nano Inpt Glbl 1M Tokens",
+        "TWD"
+      ],
+      [
+        0.1581860483,
+        20260319,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5 Nano outpt Glbl 1M Tokens",
+        "TWD"
+      ],
+      [
+        2.178054144,
+        20260319,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 cd inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        4.02696255,
+        20260319,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        50.81000936,
+        20260319,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 opt Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        617.3568,
+        20260319,
+        "Foundry Tools",
+        "Azure Document Intelligence",
+        "S0 Pre-built Pages",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260319,
+        "Log Analytics",
+        "",
+        "Analytics Logs Data Ingestion",
+        "TWD"
+      ],
+      [
+        5.176,
+        20260319,
+        "SQL Database",
+        "Single Basic",
+        "B DTU",
+        "TWD"
+      ],
+      [
+        0.03281872,
+        20260319,
+        "Storage",
+        "Tiered Block Blob",
+        "All Other Operations",
+        "TWD"
+      ],
+      [
+        0.0154716848,
+        20260319,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Data Stored",
+        "TWD"
+      ],
+      [
+        0.10224972,
+        20260319,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Write Operations",
+        "TWD"
+      ],
+      [
+        0.0327287,
+        20260319,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot Read Operations",
+        "TWD"
+      ],
+      [
+        0.10224972,
+        20260319,
+        "Storage",
+        "Tiered Block Blob",
+        "LRS List and Create Container Operations",
+        "TWD"
+      ],
+      [
+        38.585,
+        20260320,
+        "App Configuration",
+        "",
+        "Standard Instance",
+        "TWD"
+      ],
+      [
+        155.856,
+        20260320,
+        "Azure Cognitive Search",
+        "AI",
+        "Basic Unit",
+        "TWD"
+      ],
+      [
+        15.64966524,
+        20260320,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Active Usage",
+        "TWD"
+      ],
+      [
+        29.8212144,
+        20260320,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Idle Usage",
+        "TWD"
+      ],
+      [
+        59.7079724,
+        20260320,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Active Usage",
+        "TWD"
+      ],
+      [
+        14.2220624,
+        20260320,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Idle Usage",
+        "TWD"
+      ],
+      [
+        27.78084,
+        20260320,
+        "Azure Cosmos DB",
+        "",
+        "100 RU/s",
+        "TWD"
+      ],
+      [
+        0.0135804638439609,
+        20260320,
+        "Azure Cosmos DB",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        0.0001125397,
+        20260320,
+        "Azure Cosmos DB",
+        "Analytics Storage",
+        "Standard Read Operations",
+        "TWD"
+      ],
+      [
+        0.00548497876813335,
+        20260320,
+        "Azure Cosmos DB",
+        "PITR",
+        "Cont 30D Bckp Continuous Backup",
+        "TWD"
+      ],
+      [
+        0.0005546565,
+        20260320,
+        "Azure Cosmos DB",
+        "serverless",
+        "1M RUs",
+        "TWD"
+      ],
+      [
+        5.348042784,
+        20260320,
+        "Container Registry",
+        "",
+        "Basic Registry Unit",
+        "TWD"
+      ],
+      [
+        1.0156130286,
+        20260320,
+        "Container Registry",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        3.7813104,
+        20260320,
+        "Container Registry",
+        "",
+        "Task vCPU Duration",
+        "TWD"
+      ],
+      [
+        5.5381099875,
+        20260320,
+        "Foundry Models",
+        "Azure OpenAI",
+        "text-embedding-3-large-regional Tokens",
+        "TWD"
+      ],
+      [
+        2.297512266,
+        20260320,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "5.4 inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        3.90293344,
+        20260320,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "5.4 opt Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        0.0195981068,
+        20260320,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5 Mini Inpt Glbl 1M Tokens",
+        "TWD"
+      ],
+      [
+        0.0128618,
+        20260320,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5 Mini outpt Glbl 1M Tokens",
+        "TWD"
+      ],
+      [
+        2.325706624,
+        20260320,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 cd inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        9.88236248,
+        20260320,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        67.17422568,
+        20260320,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 opt Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        591.31206,
+        20260320,
+        "Foundry Tools",
+        "Azure Document Intelligence",
+        "S0 Pre-built Pages",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260320,
+        "Log Analytics",
+        "",
+        "Analytics Logs Data Ingestion",
+        "TWD"
+      ],
+      [
+        5.176,
+        20260320,
+        "SQL Database",
+        "Single Basic",
+        "B DTU",
+        "TWD"
+      ],
+      [
+        0.03306306,
+        20260320,
+        "Storage",
+        "Tiered Block Blob",
+        "All Other Operations",
+        "TWD"
+      ],
+      [
+        0.0154803792,
+        20260320,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Data Stored",
+        "TWD"
+      ],
+      [
+        0.12475752,
+        20260320,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Write Operations",
+        "TWD"
+      ],
+      [
+        0.03294732,
+        20260320,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot Read Operations",
+        "TWD"
+      ],
+      [
+        0.1028928,
+        20260320,
+        "Storage",
+        "Tiered Block Blob",
+        "LRS List and Create Container Operations",
+        "TWD"
+      ],
+      [
+        38.585,
+        20260321,
+        "App Configuration",
+        "",
+        "Standard Instance",
+        "TWD"
+      ],
+      [
+        155.856,
+        20260321,
+        "Azure Cognitive Search",
+        "AI",
+        "Basic Unit",
+        "TWD"
+      ],
+      [
+        13.88464335,
+        20260321,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Active Usage",
+        "TWD"
+      ],
+      [
+        29.98949472,
+        20260321,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Idle Usage",
+        "TWD"
+      ],
+      [
+        52.9748899,
+        20260321,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Active Usage",
+        "TWD"
+      ],
+      [
+        14.30231712,
+        20260321,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Idle Usage",
+        "TWD"
+      ],
+      [
+        27.78084,
+        20260321,
+        "Azure Cosmos DB",
+        "",
+        "100 RU/s",
+        "TWD"
+      ],
+      [
+        0.0135844517061787,
+        20260321,
+        "Azure Cosmos DB",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        0.00548497876813335,
+        20260321,
+        "Azure Cosmos DB",
+        "PITR",
+        "Cont 30D Bckp Continuous Backup",
+        "TWD"
+      ],
+      [
+        5.348042784,
+        20260321,
+        "Container Registry",
+        "",
+        "Basic Registry Unit",
+        "TWD"
+      ],
+      [
+        1.0615450176,
+        20260321,
+        "Container Registry",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        3.4058785984,
+        20260321,
+        "Foundry Models",
+        "Azure OpenAI",
+        "text-embedding-3-large-regional Tokens",
+        "TWD"
+      ],
+      [
+        3.87497728,
+        20260321,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 cd inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        23.7071137,
+        20260321,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        130.46852232,
+        20260321,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 opt Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        611.24754,
+        20260321,
+        "Foundry Tools",
+        "Azure Document Intelligence",
+        "S0 Pre-built Pages",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260321,
+        "Log Analytics",
+        "",
+        "Analytics Logs Data Ingestion",
+        "TWD"
+      ],
+      [
+        5.176,
+        20260321,
+        "SQL Database",
+        "Single Basic",
+        "B DTU",
+        "TWD"
+      ],
+      [
+        0.03302448,
+        20260321,
+        "Storage",
+        "Tiered Block Blob",
+        "All Other Operations",
+        "TWD"
+      ],
+      [
+        0.0154803792,
+        20260321,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Data Stored",
+        "TWD"
+      ],
+      [
+        0.14871225,
+        20260321,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Write Operations",
+        "TWD"
+      ],
+      [
+        0.03290874,
+        20260321,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot Read Operations",
+        "TWD"
+      ],
+      [
+        0.1028928,
+        20260321,
+        "Storage",
+        "Tiered Block Blob",
+        "LRS List and Create Container Operations",
+        "TWD"
+      ],
+      [
+        38.585,
+        20260322,
+        "App Configuration",
+        "",
+        "Standard Instance",
+        "TWD"
+      ],
+      [
+        155.856,
+        20260322,
+        "Azure Cognitive Search",
+        "AI",
+        "Basic Unit",
+        "TWD"
+      ],
+      [
+        14.8671213,
+        20260322,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Active Usage",
+        "TWD"
+      ],
+      [
+        28.8210387,
+        20260322,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Idle Usage",
+        "TWD"
+      ],
+      [
+        56.7238085,
+        20260322,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Active Usage",
+        "TWD"
+      ],
+      [
+        13.7450677,
+        20260322,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Idle Usage",
+        "TWD"
+      ],
+      [
+        27.78084,
+        20260322,
+        "Azure Cosmos DB",
+        "",
+        "100 RU/s",
+        "TWD"
+      ],
+      [
+        0.0135882437818794,
+        20260322,
+        "Azure Cosmos DB",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        0.0002893878,
+        20260322,
+        "Azure Cosmos DB",
+        "Analytics Storage",
+        "Standard Read Operations",
+        "TWD"
+      ],
+      [
+        0.00548497876813335,
+        20260322,
+        "Azure Cosmos DB",
+        "PITR",
+        "Cont 30D Bckp Continuous Backup",
+        "TWD"
+      ],
+      [
+        5.348042784,
+        20260322,
+        "Container Registry",
+        "",
+        "Basic Registry Unit",
+        "TWD"
+      ],
+      [
+        1.0615450176,
+        20260322,
+        "Container Registry",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        3.5152676353,
+        20260322,
+        "Foundry Models",
+        "Azure OpenAI",
+        "text-embedding-3-large-regional Tokens",
+        "TWD"
+      ],
+      [
+        4.302089088,
+        20260322,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 cd inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        19.9443388,
+        20260322,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        137.65172544,
+        20260322,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 opt Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        617.99988,
+        20260322,
+        "Foundry Tools",
+        "Azure Document Intelligence",
+        "S0 Pre-built Pages",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260322,
+        "Log Analytics",
+        "",
+        "Analytics Logs Data Ingestion",
+        "TWD"
+      ],
+      [
+        5.176,
+        20260322,
+        "SQL Database",
+        "Single Basic",
+        "B DTU",
+        "TWD"
+      ],
+      [
+        0.03303734,
+        20260322,
+        "Storage",
+        "Tiered Block Blob",
+        "All Other Operations",
+        "TWD"
+      ],
+      [
+        0.0154901604,
+        20260322,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Data Stored",
+        "TWD"
+      ],
+      [
+        0.15305304,
+        20260322,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Write Operations",
+        "TWD"
+      ],
+      [
+        0.0329216,
+        20260322,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot Read Operations",
+        "TWD"
+      ],
+      [
+        0.1028928,
+        20260322,
+        "Storage",
+        "Tiered Block Blob",
+        "LRS List and Create Container Operations",
+        "TWD"
+      ],
+      [
+        38.585,
+        20260323,
+        "App Configuration",
+        "",
+        "Standard Instance",
+        "TWD"
+      ],
+      [
+        155.856,
+        20260323,
+        "Azure Cognitive Search",
+        "AI",
+        "Basic Unit",
+        "TWD"
+      ],
+      [
+        15.92150268,
+        20260323,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Active Usage",
+        "TWD"
+      ],
+      [
+        28.38334806,
+        20260323,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Idle Usage",
+        "TWD"
+      ],
+      [
+        60.7451372,
+        20260323,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Active Usage",
+        "TWD"
+      ],
+      [
+        13.53632826,
+        20260323,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Idle Usage",
+        "TWD"
+      ],
+      [
+        27.78084,
+        20260323,
+        "Azure Cosmos DB",
+        "",
+        "100 RU/s",
+        "TWD"
+      ],
+      [
+        0.0135872751538472,
+        20260323,
+        "Azure Cosmos DB",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        0.0009324718,
+        20260323,
+        "Azure Cosmos DB",
+        "Analytics Storage",
+        "Standard Read Operations",
+        "TWD"
+      ],
+      [
+        0.00548751765220396,
+        20260323,
+        "Azure Cosmos DB",
+        "PITR",
+        "Cont 30D Bckp Continuous Backup",
+        "TWD"
+      ],
+      [
+        1.6077e-05,
+        20260323,
+        "Azure Cosmos DB",
+        "serverless",
+        "1M RUs",
+        "TWD"
+      ],
+      [
+        5.348042784,
+        20260323,
+        "Container Registry",
+        "",
+        "Basic Registry Unit",
+        "TWD"
+      ],
+      [
+        1.0615450176,
+        20260323,
+        "Container Registry",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        3.4882600092,
+        20260323,
+        "Foundry Models",
+        "Azure OpenAI",
+        "text-embedding-3-large-regional Tokens",
+        "TWD"
+      ],
+      [
+        0.0195981068,
+        20260323,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5 Mini Inpt Glbl 1M Tokens",
+        "TWD"
+      ],
+      [
+        0.0128618,
+        20260323,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5 Mini outpt Glbl 1M Tokens",
+        "TWD"
+      ],
+      [
+        3.344148608,
+        20260323,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 cd inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        12.41698836,
+        20260323,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        95.45777848,
+        20260323,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 opt Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        616.71372,
+        20260323,
+        "Foundry Tools",
+        "Azure Document Intelligence",
+        "S0 Pre-built Pages",
+        "TWD"
+      ],
+      [
+        320.586687916667,
+        20260323,
+        "Foundry Tools",
+        "Azure Speech",
+        "Fast Transcription Speech To Text",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260323,
+        "Log Analytics",
+        "",
+        "Analytics Logs Data Ingestion",
+        "TWD"
+      ],
+      [
+        5.176,
+        20260323,
+        "SQL Database",
+        "Single Basic",
+        "B DTU",
+        "TWD"
+      ],
+      [
+        0.03283158,
+        20260323,
+        "Storage",
+        "Tiered Block Blob",
+        "All Other Operations",
+        "TWD"
+      ],
+      [
+        0.0154934208,
+        20260323,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Data Stored",
+        "TWD"
+      ],
+      [
+        0.15064149,
+        20260323,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Write Operations",
+        "TWD"
+      ],
+      [
+        0.03271584,
+        20260323,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot Read Operations",
+        "TWD"
+      ],
+      [
+        0.10224972,
+        20260323,
+        "Storage",
+        "Tiered Block Blob",
+        "LRS List and Create Container Operations",
+        "TWD"
+      ],
+      [
+        38.585,
+        20260324,
+        "App Configuration",
+        "",
+        "Standard Instance",
+        "TWD"
+      ],
+      [
+        12.988,
+        20260324,
+        "Azure Cognitive Search",
+        "AI",
+        "Basic Unit",
+        "TWD"
+      ],
+      [
+        1.06125822,
+        20260324,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Active Usage",
+        "TWD"
+      ],
+      [
+        1.21416678,
+        20260324,
+        "Azure Container Apps",
+        "",
+        "Standard Memory Idle Usage",
+        "TWD"
+      ],
+      [
+        4.0491099,
+        20260324,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Active Usage",
+        "TWD"
+      ],
+      [
+        0.57904938,
+        20260324,
+        "Azure Container Apps",
+        "",
+        "Standard vCPU Idle Usage",
+        "TWD"
+      ],
+      [
+        1.157535,
+        20260324,
+        "Azure Cosmos DB",
+        "",
+        "100 RU/s",
+        "TWD"
+      ],
+      [
+        0.000566039430197849,
+        20260324,
+        "Azure Cosmos DB",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        0.000228656185826948,
+        20260324,
+        "Azure Cosmos DB",
+        "PITR",
+        "Cont 30D Bckp Continuous Backup",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260324,
+        "Bandwidth",
+        "",
+        "Standard Data Transfer In",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260324,
+        "Bandwidth",
+        "",
+        "Standard Data Transfer Out",
+        "TWD"
+      ],
+      [
+        0.445670232,
+        20260324,
+        "Container Registry",
+        "",
+        "Basic Registry Unit",
+        "TWD"
+      ],
+      [
+        0.0884620848,
+        20260324,
+        "Container Registry",
+        "",
+        "Data Stored",
+        "TWD"
+      ],
+      [
+        1.0676853221,
+        20260324,
+        "Foundry Models",
+        "Azure OpenAI",
+        "text-embedding-3-large-regional Tokens",
+        "TWD"
+      ],
+      [
+        12.930329258,
+        20260324,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "5.4 inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        35.15437552,
+        20260324,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "5.4 opt Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        0.0195981068,
+        20260324,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5 Mini Inpt Glbl 1M Tokens",
+        "TWD"
+      ],
+      [
+        0.0128618,
+        20260324,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5 Mini outpt Glbl 1M Tokens",
+        "TWD"
+      ],
+      [
+        0.151974016,
+        20260324,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 cd inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        0.71732996,
+        20260324,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 inp Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        4.97066672,
+        20260324,
+        "Foundry Models",
+        "Azure OpenAI GPT5",
+        "GPT 5.2 opt Gl 1M Tokens",
+        "TWD"
+      ],
+      [
+        3.85848,
+        20260324,
+        "Foundry Tools",
+        "Azure Document Intelligence",
+        "S0 Pre-built Pages",
+        "TWD"
+      ],
+      [
+        0.0,
+        20260324,
+        "Log Analytics",
+        "",
+        "Analytics Logs Data Ingestion",
+        "TWD"
+      ],
+      [
+        0.215666666666667,
+        20260324,
+        "SQL Database",
+        "Single Basic",
+        "B DTU",
+        "TWD"
+      ],
+      [
+        9.646e-06,
+        20260324,
+        "Storage",
+        "Files",
+        "Read Operations",
+        "TWD"
+      ],
+      [
+        0.00751024,
+        20260324,
+        "Storage",
+        "Tiered Block Blob",
+        "All Other Operations",
+        "TWD"
+      ],
+      [
+        0.00130416,
+        20260324,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Data Stored",
+        "TWD"
+      ],
+      [
+        0.03794172,
+        20260324,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot LRS Write Operations",
+        "TWD"
+      ],
+      [
+        0.00348506,
+        20260324,
+        "Storage",
+        "Tiered Block Blob",
+        "Hot Read Operations",
+        "TWD"
+      ],
+      [
+        0.0112539,
+        20260324,
+        "Storage",
+        "Tiered Block Blob",
+        "LRS List and Create Container Operations",
+        "TWD"
+      ]
+    ]
+  },
+  "sku": null,
+  "type": "Microsoft.CostManagement/query"
+}

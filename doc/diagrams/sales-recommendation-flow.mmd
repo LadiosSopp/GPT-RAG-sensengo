@@ -1,0 +1,50 @@
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#0078D4', 'primaryTextColor': '#fff', 'primaryBorderColor': '#005A9E', 'lineColor': '#605E5C', 'secondaryColor': '#5C2D91', 'tertiaryColor': '#F3F2F1', 'fontSize': '16px', 'fontFamily': 'Segoe UI'}, 'flowchart': {'rankSpacing': 80, 'nodeSpacing': 50, 'padding': 20}}}%%
+flowchart LR
+    START(["Input\ncustomer_id"])
+
+    subgraph S1["Step 1 — Fetch Data ~1-2s"]
+        direction TB
+        P["query_customer_persona\nAzure SQL DB\n53-field Persona"]
+        C["query_call_summary\nCosmos DB\nCall History & Sentiment"]
+    end
+
+    subgraph S2["Step 2 — RAG Query ~1-3s"]
+        direction TB
+        Q["GPT-5-mini\nQuery Generation\nSpending · Interest · Pain"]
+        SR["search_membership_card\nAI Search Hybrid\n→ Top-5 Benefit Docs"]
+    end
+
+    subgraph S3["Step 3 — GPT-5 Script ~30-60s"]
+        direction TB
+        A["Assemble Prompt\nSenior Sales Advisor\nPersona+Calls+Benefits"]
+        E{"Suitable?"}
+        SC["7-Part Sales Script\nOpening · Discovery\nPitch · Benefit\nObjection · Close\nFollow-up"]
+        AL["Alternative Strategy\nRelationship Building\nFollow-up Plan"]
+    end
+
+    OUT(["JSON Output\nScript · Confidence\nTaboos · Success Rate\nDebug Trace"])
+
+    START --> P & C
+    P & C --> Q
+    Q --> SR
+    SR --> A
+    A --> E
+    E -->|"true"| SC
+    E -->|"false"| AL
+    SC & AL --> OUT
+
+    classDef startEnd fill:#323130,stroke:#1B1A19,color:#fff,stroke-width:2px
+    classDef s1 fill:#0078D4,stroke:#005A9E,color:#fff,stroke-width:2px
+    classDef s2 fill:#FF8C00,stroke:#CC7000,color:#fff,stroke-width:2px
+    classDef s3 fill:#5C2D91,stroke:#4B2578,color:#fff,stroke-width:2px
+    classDef dec fill:#D13438,stroke:#A4262C,color:#fff,stroke-width:2px
+    classDef yes fill:#107C10,stroke:#0B5A0B,color:#fff,stroke-width:2px
+    classDef no fill:#D13438,stroke:#A4262C,color:#fff,stroke-width:2px
+    classDef out fill:#107C10,stroke:#0B5A0B,color:#fff,stroke-width:2px
+
+    class START startEnd
+    class P,C s1
+    class Q,SR s2
+    class A,SC,AL s3
+    class E dec
+    class OUT out
